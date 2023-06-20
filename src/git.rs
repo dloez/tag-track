@@ -170,25 +170,35 @@ pub fn get_commit_messages(
     Ok(commit_messages)
 }
 
-// fn create_tag(tag: &String, tag_message: &String) -> Result<(), Error>{
-//     let output = Command::new("git")
-//         .arg("tag")
-//         .args(["-a", tag])
-//         .args(["-m", tag_message])
-//         .output()?;
+pub fn create_tag(tag: &String, tag_message: &String) -> Result<(), Error>{
+    let output_result = Command::new("git")
+        .arg("tag")
+        .args(["-a", tag])
+        .args(["-m", tag_message])
+        .output();
 
-//     if !output.status.success() {
-//         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-//         return Err(Error::new(
-//             ErrorKind::Other,
-//             format!(
-//                 "can not create tag '{}', stderr: {} - code: {}",
-//                 tag,
-//                 stderr,
-//                 output.status.code().unwrap()
-//             ),
-//         ));
-//     }
+    let output = match output_result {
+        Ok(output) => output,
+        Err(error) => {
+            return Err(Error::new(
+                ErrorKind::GenericCommandFailed,
+                Some(&error.to_string()),
+            ))
+        }
+    };
 
-//     Ok(())
-// }
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(Error::new(
+            ErrorKind::Other,
+            Some(&format!(
+                "can not create tag '{}', stderr: {} - code: {}",
+                tag,
+                stderr,
+                output.status.code().unwrap()
+            )),
+        ));
+    }
+
+    Ok(())
+}

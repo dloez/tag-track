@@ -1,3 +1,4 @@
+use clap::Parser;
 use regex::Regex;
 use semver::Version;
 use source::SourceActions;
@@ -12,7 +13,17 @@ const MAJOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf)!:";
 const MINOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf):";
 const PATCH_REGEX_PATTERN: &str = r"^fix:";
 
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    // Create git annotated tag from populated version
+    #[arg(short, long, default_value = "false", default_missing_value = "true")]
+    create_tag: bool,
+}
+
 fn main() {
+    let args = Args::parse();
+
     if let Err(error) = git::verify_git() {
         println!("{}", error);
         exit(1);
@@ -100,4 +111,21 @@ fn main() {
         version::IncrementKind::Patch => version::increment_patch(&mut version),
     }
     println!("{}", version);
+
+    if !args.create_tag {
+        exit(0);
+    }
+
+    let tag_message = format!("Version {}", version);
+    let result = git::create_tag(&version.to_string(), &tag_message);
+    match result {
+        Err(error) => {
+            println!(
+                "failed to create tag '{}', error: {}",
+                version, error
+            );
+            exit(1);
+        }
+        Ok(_) => println!("tag '{}' created!", version),
+    }
 }
