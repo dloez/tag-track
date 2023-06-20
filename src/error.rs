@@ -6,7 +6,7 @@ pub enum ErrorKind {
     MissingGit,
     NotGitWorkingTree,
     SourceNotFetched,
-    Other
+    Other,
 }
 
 impl ErrorKind {
@@ -18,7 +18,7 @@ impl ErrorKind {
             MissingGit => "missing git installation",
             NotGitWorkingTree => "the current directory does not seem to be a git working tree",
             SourceNotFetched => "call `fetch` before using this property",
-            Other => "other error"
+            Other => "other error",
         }
     }
 }
@@ -32,7 +32,7 @@ impl fmt::Display for ErrorKind {
 #[derive(Debug)]
 pub struct Error {
     pub kind: ErrorKind,
-    message: String
+    message: String,
 }
 
 impl Error {
@@ -40,7 +40,7 @@ impl Error {
         let message = message.unwrap_or("");
         Self {
             kind,
-            message: message.to_owned()
+            message: message.to_owned(),
         }
     }
 }

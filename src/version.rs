@@ -1,4 +1,4 @@
-use semver::{Version, Prerelease, BuildMetadata};
+use semver::{BuildMetadata, Prerelease, Version};
 
 #[derive(Eq, PartialEq, Hash)]
 pub enum IncrementKind {

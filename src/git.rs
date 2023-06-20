@@ -14,34 +14,32 @@ pub fn verify_git() -> Result<(), Error> {
 
     let output = match output_result {
         Ok(output) => output,
-        Err(error) => return Err(Error::new(
-            ErrorKind::GenericCommandFailed,
-            Some(&error.to_string()),
-        )),
+        Err(error) => {
+            return Err(Error::new(
+                ErrorKind::GenericCommandFailed,
+                Some(&error.to_string()),
+            ))
+        }
     };
 
     if !output.status.success() {
-        return Err(Error::new(
-            ErrorKind::NotGitWorkingTree,
-            None
-        ))
+        return Err(Error::new(ErrorKind::NotGitWorkingTree, None));
     }
 
     Ok(())
 }
 
-pub fn get_current_commit() -> Result<String, Error> {
-    let output_result = Command::new("git")
-        .arg("rev-parse")
-        .arg("HEAD")
-        .output();
+pub fn get_current_commit_sha() -> Result<String, Error> {
+    let output_result = Command::new("git").arg("rev-parse").arg("HEAD").output();
 
     let output = match output_result {
         Ok(output) => output,
-        Err(error) => return Err(Error::new(
-            ErrorKind::GenericCommandFailed,
-            Some(&error.to_string()),
-        )),
+        Err(error) => {
+            return Err(Error::new(
+                ErrorKind::GenericCommandFailed,
+                Some(&error.to_string()),
+            ))
+        }
     };
 
     if !output.status.success() {
@@ -54,7 +52,7 @@ pub fn get_current_commit() -> Result<String, Error> {
                 output.status.code().unwrap()
             )),
         ));
-    }    
+    }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     Ok(String::from(stdout.strip_suffix('\n').unwrap()))
@@ -69,10 +67,12 @@ pub fn get_closest_tag() -> Result<String, Error> {
 
     let output = match output_result {
         Ok(output) => output,
-        Err(error) => return Err(Error::new(
-            ErrorKind::GenericCommandFailed,
-            Some(&error.to_string()),
-        )),
+        Err(error) => {
+            return Err(Error::new(
+                ErrorKind::GenericCommandFailed,
+                Some(&error.to_string()),
+            ))
+        }
     };
 
     if !output.status.success() {
@@ -100,10 +100,12 @@ pub fn get_tag_commit_sha(tag: &String) -> Result<String, Error> {
 
     let output = match output_result {
         Ok(output) => output,
-        Err(error) => return Err(Error::new(
-            ErrorKind::GenericCommandFailed,
-            Some(&error.to_string()),
-        )),
+        Err(error) => {
+            return Err(Error::new(
+                ErrorKind::GenericCommandFailed,
+                Some(&error.to_string()),
+            ))
+        }
     };
 
     if !output.status.success() {
@@ -122,7 +124,10 @@ pub fn get_tag_commit_sha(tag: &String) -> Result<String, Error> {
     Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
-pub fn get_commit_messages(from_commit: &String, until_commit: &String) -> Result<Vec<String>, Error> {
+pub fn get_commit_messages(
+    from_commit: &String,
+    until_commit: &String,
+) -> Result<Vec<String>, Error> {
     let output_result = Command::new("git")
         .arg("log")
         .arg("--format=%s")
@@ -132,10 +137,12 @@ pub fn get_commit_messages(from_commit: &String, until_commit: &String) -> Resul
 
     let output = match output_result {
         Ok(output) => output,
-        Err(error) => return Err(Error::new(
-            ErrorKind::GenericCommandFailed,
-            Some(&error.to_string()),
-        )),
+        Err(error) => {
+            return Err(Error::new(
+                ErrorKind::GenericCommandFailed,
+                Some(&error.to_string()),
+            ))
+        }
     };
 
     if !output.status.success() {

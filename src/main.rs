@@ -1,7 +1,7 @@
-use std::{process::exit, collections::HashMap};
-
 use regex::Regex;
+use semver::Version;
 use source::SourceActions;
+use std::{collections::HashMap, process::exit};
 
 mod error;
 mod git;
@@ -18,7 +18,7 @@ fn main() {
         exit(1);
     }
 
-    let current_commit = match git::get_current_commit() {
+    let current_commit = match git::get_current_commit_sha() {
         Ok(current_commit) => current_commit,
         Err(error) => {
             println!("{}", error);
@@ -33,7 +33,23 @@ fn main() {
     };
 
     let git_source = git_source;
-    let version = 
+    let closest_tag = match git_source.get_closest_tag() {
+        Ok(tag) => tag,
+        Err(error) => {
+            println!("{}", error);
+            exit(1);
+        }
+    };
+
+    println!("{}", closest_tag);
+    let mut version = match Version::parse(closest_tag) {
+        Ok(version) => version,
+        Err(error) => {
+            println!("{}", error);
+            exit(1);
+        }
+    };
+
     let commit_messages = match git_source.get_commit_messages() {
         Ok(commit_messages) => commit_messages,
         Err(error) => {
@@ -79,9 +95,9 @@ fn main() {
     let kind = increment_kind.unwrap();
     print!("version change: {} -> ", version);
     match kind {
-        IncrementKind::Major => increment_major(&mut version),
-        IncrementKind::Minor => increment_minor(&mut version),
-        IncrementKind::Patch => increment_patch(&mut version),
+        version::IncrementKind::Major => version::increment_major(&mut version),
+        version::IncrementKind::Minor => version::increment_minor(&mut version),
+        version::IncrementKind::Patch => version::increment_patch(&mut version),
     }
     println!("{}", version);
 }
