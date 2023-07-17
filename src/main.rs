@@ -1,10 +1,12 @@
 use clap::Parser;
-use semver::Version;
+use semver::{Version, Prerelease, BuildMetadata};
 use std::{
     io::Error,
     io::ErrorKind,
     process::{exit, Command},
+    collections::HashMap
 };
+use regex::Regex;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -14,8 +16,16 @@ struct Args {
     verbose: bool,
 }
 
-// const PATCH_INCREASE_TYPES: [&'static str; 1] = ["fix"];
-// const MINOR_INCREASE_TYPES: [&'static str; 3] = ["feat", "refactor", "pref"];
+const MAJOR_REGEX_PATTERN: &'static str = r"^(feat|refactor|perf)!:";
+const MINOR_REGEX_PATTERN: &'static str = r"^(feat|refactor|perf):";
+const PATCH_REGEX_PATTERN: &'static str = r"^fix:";
+
+#[derive(Eq, PartialEq, Hash)]
+enum IncrementKind {
+    Major,
+    Minor,
+    Patch,
+}
 
 fn verify_git() -> Result<bool, Error> {
     Command::new("git").arg("--version").output()?;
@@ -103,6 +113,27 @@ fn get_commit_messages(from_commit: &String, to_commit: &String) -> Result<Vec<S
     Ok(stdout.lines().map(|s| s.to_owned()).collect())
 }
 
+fn increment_patch(v: &mut Version) {
+    v.patch += 1;
+    v.pre = Prerelease::EMPTY;
+    v.build = BuildMetadata::EMPTY;
+}
+
+fn increment_minor(v: &mut Version) {
+    v.minor += 1;
+    v.patch = 0;
+    v.pre = Prerelease::EMPTY;
+    v.build = BuildMetadata::EMPTY;
+}
+
+fn increment_major(v: &mut Version) {
+    v.major += 1;
+    v.minor = 0;
+    v.patch = 0;
+    v.pre = Prerelease::EMPTY;
+    v.build = BuildMetadata::EMPTY;
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -131,7 +162,7 @@ fn main() {
         }
     };
 
-    let version = match Version::parse(&closest_tag) {
+    let mut version = match Version::parse(&closest_tag) {
         Err(error) => {
             println!(
                 "could not parse tag '{}' as a semantic version, error: {}",
@@ -175,12 +206,54 @@ fn main() {
         }
         Ok(commit_messages) => {
             if args.verbose {
-                println!("extracted commit messages from commit '{}' to commit '{}', list of messages: {:?}", tag_commit_sha, head_commit, commit_messages);
+                println!("extracted commit messages from commit '{}' to commit '{}'", tag_commit_sha, head_commit);
+                println!("commit messages:");
+                for commit_message in &commit_messages {
+                    println!("- {}", commit_message);
+                }
             }
             commit_messages
         }
     };
 
-    println!("{:?}", commit_messages);
-    println!("{:?}", version)
+    let patterns: HashMap<IncrementKind, &'static str> = HashMap::from([
+        (IncrementKind::Major, MAJOR_REGEX_PATTERN),
+        (IncrementKind::Patch, PATCH_REGEX_PATTERN),
+        (IncrementKind::Minor, MINOR_REGEX_PATTERN)
+    ]);
+
+    let mut increment_kind: Option<&IncrementKind> = None;
+    for commit_message in commit_messages {
+        for (kind, pattern) in &patterns {
+            let re = Regex::new(pattern).unwrap();
+            if re.is_match(commit_message.as_str()) {
+                match kind {
+                    IncrementKind::Major => {
+                        increment_kind = Some(kind);
+                        break;
+                    },
+                    IncrementKind::Patch => increment_kind = Some(kind),
+                    IncrementKind::Minor => {
+                        if let Some(_) = increment_kind {
+                            continue;
+                        }
+                        increment_kind = Some(&IncrementKind::Minor)
+                    }
+                }
+            }
+        };
+    }
+    let increment_kind = increment_kind;
+
+    if let Some(kind) = increment_kind {
+        print!("version change: {} -> ", version);
+        match kind {
+            IncrementKind::Major => increment_major(&mut version),
+            IncrementKind::Minor => increment_minor(&mut version),
+            IncrementKind::Patch => increment_patch(&mut version)
+        }
+        println!("{}", version);
+    } else {
+        println!("version bump not required");
+    }
 }
