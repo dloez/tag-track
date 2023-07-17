@@ -64,6 +64,32 @@ fn get_tag_commit_sha(tag: &String) -> Result<String, Error> {
     Ok(String::from(stdout.strip_suffix("\n").unwrap()))
 }
 
+fn get_commit_messages(from_commit: &String, to_commit: &String) -> Result<Vec<String>, Error> {
+    let output = Command::new("git")
+        .arg("log")
+        .arg("--format=%s")
+        .arg(from_commit)
+        .arg(to_commit)
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!(
+                "can not get commit between '{}' and '{}', stderr: {} - code: {}",
+                from_commit,
+                to_commit,
+                stderr,
+                output.status.code().unwrap()
+            ),
+        ));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    Ok(stdout.lines().map(|s| s.to_owned()).collect())
+}
+
 fn main() {
     match verify_git() {
         Err(error) => {
@@ -77,9 +103,7 @@ fn main() {
     println!("tag: {}", tag);
     let tag_commit_sha = get_tag_commit_sha(&tag).expect("failed to get tag commit sha");
     println!("tag {} - commit: {}", tag, tag_commit_sha);
+    let commits_messages = get_commit_messages(&tag_commit_sha, &String::from("HEAD"))
+        .expect("could not get commit messages");
+    println!("{:?}", commits_messages);
 }
-
-// Obtain closest tag: git describe --abbrev=0 --tags
-// Obtain commit sha from the latest tag: git rev-list -n 1 0.2.2
-// Read commit messages from tag commit to HEAD
-// Increment version based on iterated commit messages
