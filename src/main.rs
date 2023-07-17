@@ -1,12 +1,12 @@
 use clap::Parser;
-use semver::{Version, Prerelease, BuildMetadata};
+use regex::Regex;
+use semver::{BuildMetadata, Prerelease, Version};
 use std::{
+    collections::HashMap,
     io::Error,
     io::ErrorKind,
     process::{exit, Command},
-    collections::HashMap
 };
-use regex::Regex;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -16,9 +16,9 @@ struct Args {
     verbose: bool,
 }
 
-const MAJOR_REGEX_PATTERN: &'static str = r"^(feat|refactor|perf)!:";
-const MINOR_REGEX_PATTERN: &'static str = r"^(feat|refactor|perf):";
-const PATCH_REGEX_PATTERN: &'static str = r"^fix:";
+const MAJOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf)!:";
+const MINOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf):";
+const PATCH_REGEX_PATTERN: &str = r"^fix:";
 
 #[derive(Eq, PartialEq, Hash)]
 enum IncrementKind {
@@ -206,7 +206,10 @@ fn main() {
         }
         Ok(commit_messages) => {
             if args.verbose {
-                println!("extracted commit messages from commit '{}' to commit '{}'", tag_commit_sha, head_commit);
+                println!(
+                    "extracted commit messages from commit '{}' to commit '{}'",
+                    tag_commit_sha, head_commit
+                );
                 println!("commit messages:");
                 for commit_message in &commit_messages {
                     println!("- {}", commit_message);
@@ -219,7 +222,7 @@ fn main() {
     let patterns: HashMap<IncrementKind, &'static str> = HashMap::from([
         (IncrementKind::Major, MAJOR_REGEX_PATTERN),
         (IncrementKind::Patch, PATCH_REGEX_PATTERN),
-        (IncrementKind::Minor, MINOR_REGEX_PATTERN)
+        (IncrementKind::Minor, MINOR_REGEX_PATTERN),
     ]);
 
     let mut increment_kind: Option<&IncrementKind> = None;
@@ -231,17 +234,17 @@ fn main() {
                     IncrementKind::Major => {
                         increment_kind = Some(kind);
                         break;
-                    },
+                    }
                     IncrementKind::Patch => increment_kind = Some(kind),
                     IncrementKind::Minor => {
-                        if let Some(_) = increment_kind {
+                        if increment_kind.is_some() {
                             continue;
                         }
                         increment_kind = Some(&IncrementKind::Minor)
                     }
                 }
             }
-        };
+        }
     }
     let increment_kind = increment_kind;
 
@@ -250,7 +253,7 @@ fn main() {
         match kind {
             IncrementKind::Major => increment_major(&mut version),
             IncrementKind::Minor => increment_minor(&mut version),
-            IncrementKind::Patch => increment_patch(&mut version)
+            IncrementKind::Patch => increment_patch(&mut version),
         }
         println!("{}", version);
     } else {
