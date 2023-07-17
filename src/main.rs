@@ -38,13 +38,13 @@ fn get_closest_tag() -> Result<String, Error> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    Ok(String::from(stdout.strip_suffix("\n").unwrap()))
+    Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
 fn get_tag_commit_sha(tag: &String) -> Result<String, Error> {
     let output = Command::new("git")
         .arg("rev-list")
-        .arg("-n 1")
+        .args(["-n", "1"])
         .arg(tag)
         .output()?;
 
@@ -61,7 +61,7 @@ fn get_tag_commit_sha(tag: &String) -> Result<String, Error> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    Ok(String::from(stdout.strip_suffix("\n").unwrap()))
+    Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
 fn get_commit_messages(from_commit: &String, to_commit: &String) -> Result<Vec<String>, Error> {
@@ -91,12 +91,9 @@ fn get_commit_messages(from_commit: &String, to_commit: &String) -> Result<Vec<S
 }
 
 fn main() {
-    match verify_git() {
-        Err(error) => {
-            println!("Git verification not passed, error: {}", error);
-            exit(1);
-        }
-        _ => {}
+    if let Err(error) = verify_git() {
+        println!("Git verification not passed, error: {}", error);
+        exit(1);
     }
 
     let tag = get_closest_tag().expect("failed to get closest tag");
