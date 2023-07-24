@@ -14,6 +14,10 @@ struct Args {
     /// Run with verbose mode
     #[arg(short, long, default_value = "false", default_missing_value = "true")]
     verbose: bool,
+
+    // Create git annotated tag from populated version
+    #[arg(short, long, default_value = "false", default_missing_value = "true")]
+    create_tag: bool,
 }
 
 const MAJOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf)!:";
@@ -111,6 +115,29 @@ fn get_commit_messages(from_commit: &String, to_commit: &String) -> Result<Vec<S
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     Ok(stdout.lines().map(|s| s.to_owned()).collect())
+}
+
+fn create_tag(tag: &String, tag_message: &String) -> Result<(), Error>{
+    let output = Command::new("git")
+        .arg("tag")
+        .args(["-a", tag])
+        .args(["-m", tag_message])
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!(
+                "can not create tag '{}', stderr: {} - code: {}",
+                tag,
+                stderr,
+                output.status.code().unwrap()
+            ),
+        ));
+    }
+
+    Ok(())
 }
 
 fn increment_patch(v: &mut Version) {
@@ -248,15 +275,34 @@ fn main() {
     }
     let increment_kind = increment_kind;
 
-    if let Some(kind) = increment_kind {
-        print!("version change: {} -> ", version);
-        match kind {
-            IncrementKind::Major => increment_major(&mut version),
-            IncrementKind::Minor => increment_minor(&mut version),
-            IncrementKind::Patch => increment_patch(&mut version),
-        }
-        println!("{}", version);
-    } else {
+    if increment_kind.is_none() {
         println!("version bump not required");
+        exit(0);
+    }
+
+    let kind = increment_kind.unwrap();
+    print!("version change: {} -> ", version);
+    match kind {
+        IncrementKind::Major => increment_major(&mut version),
+        IncrementKind::Minor => increment_minor(&mut version),
+        IncrementKind::Patch => increment_patch(&mut version),
+    }
+    println!("{}", version);
+
+    if !args.create_tag {
+        exit(0);
+    }
+
+    let tag_message = format!("Version {}", version);
+    let result = create_tag(&version.to_string(), &tag_message);
+    match result {
+        Err(error) => {
+            println!(
+                "failed to create tag '{}', error: {}",
+                version, error
+            );
+            exit(1);
+        }
+        Ok(_) => println!("tag '{}' created!", version),
     }
 }
