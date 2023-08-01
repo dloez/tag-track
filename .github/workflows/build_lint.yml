@@ -4,11 +4,6 @@ on:
     branches:
       - main
   workflow_call:
-    inputs:
-      version:
-        type: string
-        description: Project version used for naming artifacts
-        required: true
 jobs:
   build:
     strategy:
@@ -34,12 +29,14 @@ jobs:
       - name: Install aarch64-unknown-linux-gnu requisites
         run: sudo apt-get install g++-aarch64-linux-gnu -y
         if: matrix.os-target.target == 'aarch64-unknown-linux-gnu'
+      - name: Run trag-track
+        run: cargo run -- --create-tag
       - name: Run cargo build
         run: cargo build --release --target ${{ matrix.os-target.target }}
       - name: Upload artifacts for reuse in release job
         uses: actions/upload-artifact@v3
         with:
-          name: tag-track_${{ inputs.version }}_${{ matrix.os-target.target }}
+          name: tag-track_${{ matrix.os-target.target }}
           path: ${{ github.workspace }}/target/${{ matrix.os-target.target }}/release/tag-track${{ matrix.os-target.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
           if-no-files-found: error
           retention-days: 5
