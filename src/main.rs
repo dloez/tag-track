@@ -117,7 +117,7 @@ fn get_commit_messages(from_commit: &String, to_commit: &String) -> Result<Vec<S
     Ok(stdout.lines().map(|s| s.to_owned()).collect())
 }
 
-fn create_tag(tag: &String, tag_message: &String) -> Result<(), Error>{
+fn create_tag(tag: &String, tag_message: &String) -> Result<(), Error> {
     let output = Command::new("git")
         .arg("tag")
         .args(["-a", tag])
@@ -297,10 +297,7 @@ fn main() {
     let result = create_tag(&version.to_string(), &tag_message);
     match result {
         Err(error) => {
-            println!(
-                "failed to create tag '{}', error: {}",
-                version, error
-            );
+            println!("failed to create tag '{}', error: {}", version, error);
             exit(1);
         }
         Ok(_) => println!("tag '{}' created!", version),
