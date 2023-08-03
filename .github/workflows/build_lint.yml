@@ -20,6 +20,8 @@ jobs:
     runs-on: ${{ matrix.os-target.os }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 100
       - name: Setup rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
