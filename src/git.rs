@@ -2,9 +2,9 @@ use std::process::Command;
 
 use crate::error::{Error, ErrorKind};
 
-pub fn verify_git() -> Result<bool, Error> {
+pub fn verify_git() -> Result<(), Error> {
     if let Err(error) = Command::new("git").arg("--version").output() {
-        return Err(Error::new(ErrorKind::MissingGit, error.to_string()));
+        return Err(Error::new(ErrorKind::MissingGit, Some(&error.to_string())));
     }
 
     let output_result = Command::new("git")
@@ -12,13 +12,22 @@ pub fn verify_git() -> Result<bool, Error> {
         .arg("--is-inside-work-tree")
         .output();
 
-    match output_result {
-        Ok(_) => Ok(true),
-        Err(error) => Err(Error::new(
+    let output = match output_result {
+        Ok(output) => output,
+        Err(error) => return Err(Error::new(
             ErrorKind::GenericCommandFailed,
-            error.to_string(),
+            Some(&error.to_string()),
         )),
+    };
+
+    if !output.status.success() {
+        return Err(Error::new(
+            ErrorKind::NotGitWorkingTree,
+            None
+        ))
     }
+
+    Ok(())
 }
 
 // fn get_closest_tag() -> Result<String, Error> {
