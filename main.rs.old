@@ -1,0 +1,171 @@
+use clap::Parser;
+use regex::Regex;
+use semver::{BuildMetadata, Prerelease, Version};
+use std::{
+    collections::HashMap,
+    io::Error,
+    io::ErrorKind,
+    process::{exit, Command},
+};
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Run with verbose mode
+    #[arg(short, long, default_value = "false", default_missing_value = "true")]
+    verbose: bool,
+
+    // Create git annotated tag from populated version
+    #[arg(short, long, default_value = "false", default_missing_value = "true")]
+    create_tag: bool,
+}
+
+const MAJOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf)!:";
+const MINOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf):";
+const PATCH_REGEX_PATTERN: &str = r"^fix:";
+
+fn main() {
+    let args = Args::parse();
+
+    match verify_git() {
+        Err(error) => {
+            println!("git verification not passed, error: {}", error);
+            exit(1);
+        }
+        Ok(_) => {
+            if args.verbose {
+                println!("found git installation and git managed project")
+            };
+        }
+    }
+
+    let closest_tag = match get_closest_tag() {
+        Err(error) => {
+            println!("could not get a tag, error: {}", error);
+            exit(1);
+        }
+        Ok(tag) => {
+            if args.verbose {
+                println!("closest tag found: {}", tag);
+            }
+            tag
+        }
+    };
+
+    let mut version = match Version::parse(&closest_tag) {
+        Err(error) => {
+            println!(
+                "could not parse tag '{}' as a semantic version, error: {}",
+                closest_tag, error
+            );
+            exit(1);
+        }
+        Ok(version) => {
+            println!("current version: {}", version);
+            version
+        }
+    };
+
+    let tag_commit_sha = match get_tag_commit_sha(&closest_tag) {
+        Err(error) => {
+            println!(
+                "could not get commit sha for tag '{}', error: {}",
+                closest_tag, error
+            );
+            exit(1);
+        }
+        Ok(commit_sha) => {
+            if args.verbose {
+                println!(
+                    "commit sha of commit pointed by tag '{}': {}",
+                    closest_tag, commit_sha
+                )
+            }
+            commit_sha
+        }
+    };
+
+    let head_commit = String::from("HEAD");
+    let commit_messages = match get_commit_messages(&tag_commit_sha, &head_commit) {
+        Err(error) => {
+            println!(
+                "failed to get commit messages from commit '{}' to commit '{}', error: {}",
+                tag_commit_sha, head_commit, error
+            );
+            exit(1);
+        }
+        Ok(commit_messages) => {
+            if args.verbose {
+                println!(
+                    "extracted commit messages from commit '{}' to commit '{}'",
+                    tag_commit_sha, head_commit
+                );
+                println!("commit messages:");
+                for commit_message in &commit_messages {
+                    println!("- {}", commit_message);
+                }
+            }
+            commit_messages
+        }
+    };
+
+    let patterns: HashMap<IncrementKind, &'static str> = HashMap::from([
+        (IncrementKind::Major, MAJOR_REGEX_PATTERN),
+        (IncrementKind::Patch, PATCH_REGEX_PATTERN),
+        (IncrementKind::Minor, MINOR_REGEX_PATTERN),
+    ]);
+
+    let mut increment_kind: Option<&IncrementKind> = None;
+    for commit_message in commit_messages {
+        for (kind, pattern) in &patterns {
+            let re = Regex::new(pattern).unwrap();
+            if re.is_match(commit_message.as_str()) {
+                match kind {
+                    IncrementKind::Major => {
+                        increment_kind = Some(kind);
+                        break;
+                    }
+                    IncrementKind::Patch => increment_kind = Some(kind),
+                    IncrementKind::Minor => {
+                        if increment_kind.is_some() {
+                            continue;
+                        }
+                        increment_kind = Some(&IncrementKind::Minor)
+                    }
+                }
+            }
+        }
+    }
+    let increment_kind = increment_kind;
+
+    if increment_kind.is_none() {
+        println!("version bump not required");
+        exit(0);
+    }
+
+    let kind = increment_kind.unwrap();
+    print!("version change: {} -> ", version);
+    match kind {
+        IncrementKind::Major => increment_major(&mut version),
+        IncrementKind::Minor => increment_minor(&mut version),
+        IncrementKind::Patch => increment_patch(&mut version),
+    }
+    println!("{}", version);
+
+    if !args.create_tag {
+        exit(0);
+    }
+
+    let tag_message = format!("Version {}", version);
+    let result = create_tag(&version.to_string(), &tag_message);
+    match result {
+        Err(error) => {
+            println!(
+                "failed to create tag '{}', error: {}",
+                version, error
+            );
+            exit(1);
+        }
+        Ok(_) => println!("tag '{}' created!", version),
+    }
+}

@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.3.14", features = ["derive"] }
+enum_dispatch = "0.3.12"
 regex = "1.9.1"
 semver = "1.0.18"
