@@ -1,5 +1,5 @@
-use enum_dispatch::enum_dispatch;
 use crate::error::ErrorKind;
+use enum_dispatch::enum_dispatch;
 
 pub mod git;
 
@@ -11,5 +11,5 @@ pub trait SourceActions {
 
 #[enum_dispatch(SourceActions)]
 pub enum SourceKind {
-    Git(git::GitSource)
+    Git(git::GitSource),
 }

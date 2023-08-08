@@ -1,20 +1,22 @@
 #[derive(Debug)]
 pub enum ErrorKind {
-    GenericCommandFailed(String),
+    GenericCommandFailed,
     MissingGit,
     NotGitWorkingTree,
     SourceNotFetched,
 }
 
+#[derive(Debug)]
 pub struct Error {
-    payload: String
+    kind: ErrorKind,
+    message: String,
 }
 
 impl Error {
-    fn new(error_kind: ErrorKind, payload: &str) -> Self {
-        let repr = format!()
+    pub fn new(error_kind: ErrorKind, message: String) -> Self {
         Self {
-            payload: payload.to_owned()
+            kind: error_kind,
+            message: message,
         }
     }
 }

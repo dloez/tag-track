@@ -1,16 +1,16 @@
-use crate::source::SourceActions;
 use crate::error::ErrorKind;
+use crate::source::SourceActions;
 
 pub struct GitSource {
     commits: Vec<String>,
-    remote_fetched: bool
+    remote_fetched: bool,
 }
 
 impl GitSource {
     pub fn new() -> Self {
         Self {
             commits: vec![],
-            remote_fetched: false
+            remote_fetched: false,
         }
     }
 }
@@ -18,7 +18,7 @@ impl GitSource {
 impl SourceActions for GitSource {
     fn get_commits(&self) -> Result<&Vec<String>, ErrorKind> {
         if !self.remote_fetched {
-            return Err(ErrorKind::SourceNotFetched)
+            return Err(ErrorKind::SourceNotFetched);
         }
         Ok(&self.commits)
     }

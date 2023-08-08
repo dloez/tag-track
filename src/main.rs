@@ -1,6 +1,6 @@
-mod source;
-mod git;
 mod error;
+mod git;
+mod source;
 
 fn main() {
     // let output = git::verify_git();
@@ -9,6 +9,4 @@ fn main() {
         Ok(_) => todo!(),
         Err(error) => println!("{:?}", error),
     }
-
-    println!("yikes");
 }
