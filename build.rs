@@ -1,4 +1,7 @@
-use std::{io::{Error, ErrorKind}, process::Command};
+use std::{
+    io::{Error, ErrorKind},
+    process::Command,
+};
 
 fn get_closest_tag() -> Result<String, Error> {
     let output = Command::new("git")
