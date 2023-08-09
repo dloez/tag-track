@@ -1,12 +1,12 @@
-use crate::error::ErrorKind;
+use crate::error::Error;
 use enum_dispatch::enum_dispatch;
 
 pub mod git;
 
 #[enum_dispatch]
 pub trait SourceActions {
-    fn get_commits(&self) -> Result<&Vec<String>, ErrorKind>;
-    fn from_commit_sha(&mut self);
+    fn get_commit_messages(&self) -> Result<&Vec<String>, Error>;
+    fn fetch_from_commit(&mut self, sha: String) -> Result<(), Error>;
 }
 
 #[enum_dispatch(SourceActions)]

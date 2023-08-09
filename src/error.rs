@@ -6,6 +6,7 @@ pub enum ErrorKind {
     MissingGit,
     NotGitWorkingTree,
     SourceNotFetched,
+    Other
 }
 
 impl ErrorKind {
@@ -16,7 +17,8 @@ impl ErrorKind {
             GenericCommandFailed => "shell command failed",
             MissingGit => "missing git installation",
             NotGitWorkingTree => "the current directory does not seem to be a git working tree",
-            SourceNotFetched => "call `fetch` before using this property"
+            SourceNotFetched => "call `fetch` before using this property",
+            Other => "other error"
         }
     }
 }
@@ -27,6 +29,7 @@ impl fmt::Display for ErrorKind {
     }
 }
 
+#[derive(Debug)]
 pub struct Error {
     pub kind: ErrorKind,
     message: String
