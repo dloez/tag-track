@@ -41,7 +41,7 @@ impl SourceActions for GithubSource {
 
             if tag.is_some() {
                 self.closest_tag = tag.clone().unwrap().name;
-                self.closest_tag_commit_sha = tag.clone().unwrap().commit.sha;
+                self.closest_tag_commit_sha = tag.unwrap().commit.sha;
                 break;
             }
             self.commit_messages.push(commit.commit.message);
