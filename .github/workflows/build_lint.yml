@@ -20,6 +20,10 @@ jobs:
     runs-on: ${{ matrix.os-target.os }}
     steps:
       - uses: actions/checkout@v3
+      - name: Comfigure git author
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
       - name: Setup rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
