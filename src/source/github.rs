@@ -39,9 +39,9 @@ impl SourceActions for GithubSource {
         for commit in commits {
             let tag = find_tag_from_commit_sha(commit.sha, &tags);
 
-            if tag.is_some() {
-                self.closest_tag = tag.clone().unwrap().name;
-                self.closest_tag_commit_sha = tag.unwrap().commit.sha;
+            if let Some(tag) = tag {
+                self.closest_tag = tag.clone().name;
+                self.closest_tag_commit_sha = tag.commit.sha;
                 break;
             }
             self.commit_messages.push(commit.commit.message);
