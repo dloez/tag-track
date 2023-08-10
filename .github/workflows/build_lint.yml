@@ -20,8 +20,6 @@ jobs:
     runs-on: ${{ matrix.os-target.os }}
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 100
       - name: Setup rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -32,7 +30,7 @@ jobs:
         run: sudo apt update && sudo apt-get install g++-aarch64-linux-gnu -y
         if: matrix.os-target.target == 'aarch64-unknown-linux-gnu'
       - name: Run trag-track
-        run: cargo run -- --create-tag
+        run: cargo run -- --create-tag --github-repo dloez/tag-track
       - name: Run cargo build
         run: cargo build --release --target ${{ matrix.os-target.target }}
       - name: Upload artifacts for reuse in release job
