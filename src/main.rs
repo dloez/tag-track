@@ -2,6 +2,7 @@ use clap::Parser;
 use regex::Regex;
 use semver::Version;
 use source::SourceActions;
+use std::env;
 use std::{collections::HashMap, process::exit};
 
 mod error;
@@ -13,12 +14,19 @@ const MAJOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf)!:";
 const MINOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf):";
 const PATCH_REGEX_PATTERN: &str = r"^fix:";
 
+const GITHUB_ACTION_COMMIT_SHA_VAR: &str = "GITHUB_SHA";
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    // Create git annotated tag from populated version
+    // Create git annotated tag from populated version.
     #[arg(short, long, default_value = "false", default_missing_value = "true")]
     create_tag: bool,
+
+    // GitHUb repository identifier (owner/repo_name).
+    // If pressent, this will use GitHub as the source to calculate a version bump.
+    #[arg(short, long, default_value = None)]
+    github_repo: Option<String>,
 }
 
 fn main() {
@@ -29,22 +37,35 @@ fn main() {
         exit(1);
     }
 
-    let current_commit = match git::get_current_commit_sha() {
-        Ok(current_commit) => current_commit,
-        Err(error) => {
-            println!("{}", error);
-            exit(1);
-        }
+    let current_commit_sha = match args.github_repo {
+        Some(_) => match env::var(GITHUB_ACTION_COMMIT_SHA_VAR) {
+            Ok(commit_sha) => commit_sha,
+            Err(error) => {
+                println!("{}", error);
+                exit(1);
+            }
+        },
+        None => match git::get_current_commit_sha() {
+            Ok(current_commit) => current_commit,
+            Err(error) => {
+                println!("{}", error);
+                exit(1);
+            }
+        },
     };
 
-    let mut git_source = source::git::GitSource::new();
-    if let Err(error) = git_source.fetch_from_commit(current_commit) {
+    let mut source: source::SourceKind = match args.github_repo {
+        Some(repo) => source::SourceKind::Github(source::github::GithubSource::new(repo)),
+        None => source::SourceKind::Git(source::git::GitSource::new()),
+    };
+
+    if let Err(error) = source.fetch_from_commit(current_commit_sha) {
         println!("{}", error);
         exit(1);
     };
 
-    let git_source = git_source;
-    let closest_tag = match git_source.get_closest_tag() {
+    let source = source;
+    let closest_tag = match source.get_closest_tag() {
         Ok(tag) => tag,
         Err(error) => {
             println!("{}", error);
@@ -52,7 +73,6 @@ fn main() {
         }
     };
 
-    println!("{}", closest_tag);
     let mut version = match Version::parse(closest_tag) {
         Ok(version) => version,
         Err(error) => {
@@ -61,7 +81,7 @@ fn main() {
         }
     };
 
-    let commit_messages = match git_source.get_commit_messages() {
+    let commit_messages = match source.get_commit_messages() {
         Ok(commit_messages) => commit_messages,
         Err(error) => {
             println!("{}", error);
@@ -120,10 +140,7 @@ fn main() {
     let result = git::create_tag(&version.to_string(), &tag_message);
     match result {
         Err(error) => {
-            println!(
-                "failed to create tag '{}', error: {}",
-                version, error
-            );
+            println!("failed to create tag '{}', error: {}", version, error);
             exit(1);
         }
         Ok(_) => println!("tag '{}' created!", version),

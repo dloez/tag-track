@@ -170,7 +170,7 @@ pub fn get_commit_messages(
     Ok(commit_messages)
 }
 
-pub fn create_tag(tag: &String, tag_message: &String) -> Result<(), Error>{
+pub fn create_tag(tag: &String, tag_message: &String) -> Result<(), Error> {
     let output_result = Command::new("git")
         .arg("tag")
         .args(["-a", tag])

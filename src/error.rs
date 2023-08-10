@@ -6,6 +6,10 @@ pub enum ErrorKind {
     MissingGit,
     NotGitWorkingTree,
     SourceNotFetched,
+    GithubRestError,
+    MissingGitTags,
+    MissingGitCommits,
+    MissingGitClosestTag,
     Other,
 }
 
@@ -17,7 +21,11 @@ impl ErrorKind {
             GenericCommandFailed => "shell command failed",
             MissingGit => "missing git installation",
             NotGitWorkingTree => "the current directory does not seem to be a git working tree",
-            SourceNotFetched => "call `fetch` before using this property",
+            SourceNotFetched => "call `fetch` method before using this property",
+            GithubRestError => "error while calling GitHub REST API",
+            MissingGitTags => "ther are no tags in source",
+            MissingGitCommits => "there are no commits in source",
+            MissingGitClosestTag => "cannot find closest tag",
             Other => "other error",
         }
     }

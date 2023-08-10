@@ -2,6 +2,7 @@ use crate::error::Error;
 use enum_dispatch::enum_dispatch;
 
 pub mod git;
+pub mod github;
 
 #[enum_dispatch]
 pub trait SourceActions {
@@ -13,4 +14,5 @@ pub trait SourceActions {
 #[enum_dispatch(SourceActions)]
 pub enum SourceKind {
     Git(git::GitSource),
+    Github(github::GithubSource),
 }
