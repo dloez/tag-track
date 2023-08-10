@@ -57,14 +57,20 @@ impl SourceActions for GithubSource {
 
     fn get_commit_messages(&self) -> Result<&Vec<String>, Error> {
         if !self.remote_fetched {
-            return Err(Error::new(ErrorKind::SourceNotFetched, Some("get_commit_messages")));
+            return Err(Error::new(
+                ErrorKind::SourceNotFetched,
+                Some("get_commit_messages"),
+            ));
         }
         Ok(&self.commit_messages)
     }
 
     fn get_closest_tag(&self) -> Result<&String, Error> {
         if !self.remote_fetched {
-            return Err(Error::new(ErrorKind::SourceNotFetched, Some("get_closest_tag")));
+            return Err(Error::new(
+                ErrorKind::SourceNotFetched,
+                Some("get_closest_tag"),
+            ));
         }
         Ok(&self.closest_tag)
     }
