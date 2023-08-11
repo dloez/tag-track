@@ -10,28 +10,30 @@ pub struct GithubSource {
     remote_fetched: bool,
 
     repo_id: String,
+    token: Option<String>,
 }
 
 impl GithubSource {
-    pub fn new(repo_id: String) -> Self {
+    pub fn new(repo_id: String, token: Option<String>) -> Self {
         Self {
             commit_messages: vec![],
             closest_tag: "".to_owned(),
             closest_tag_commit_sha: "".to_owned(),
             remote_fetched: false,
             repo_id,
+            token,
         }
     }
 }
 
 impl SourceActions for GithubSource {
     fn fetch_from_commit(&mut self, sha: String) -> Result<(), Error> {
-        let tags = match get_tags(&self.repo_id)? {
+        let tags = match get_tags(&self.repo_id, &self.token)? {
             Some(tags) => tags,
             None => return Err(Error::new(ErrorKind::MissingGitTags, None)),
         };
 
-        let commits = match get_commits_from_commit_sha(&self.repo_id, sha)? {
+        let commits = match get_commits_from_commit_sha(&self.repo_id, &sha, &self.token)? {
             Some(commits) => commits,
             None => return Err(Error::new(ErrorKind::MissingGitCommits, None)),
         };
@@ -80,6 +82,7 @@ const GITHUB_BASE_URI: &str = "https://api.github.com/repos";
 const GITHUB_TAGS_URI: &str = "/tags";
 const GITHUB_COMMITS_URI: &str = "/commits";
 const USER_AGENT: &str = "tag-track";
+const AUTH_HEADER: &str = "authorization";
 
 #[derive(Debug, Deserialize, Clone)]
 struct GithubTag {
@@ -103,17 +106,20 @@ struct GithubCommit {
     message: String,
 }
 
-fn get_tags(repo_id: &String) -> Result<Option<Vec<GithubTag>>, Error> {
+fn get_tags(repo_id: &String, token: &Option<String>) -> Result<Option<Vec<GithubTag>>, Error> {
     let client = reqwest::blocking::Client::new();
-    let response = client
+    let mut client = client
         .get(format!(
             "{}/{}{}",
             GITHUB_BASE_URI, repo_id, GITHUB_TAGS_URI
         ))
-        .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .send();
+        .header(reqwest::header::USER_AGENT, USER_AGENT);
 
-    let response = match response {
+    if let Some(token) = token {
+        client = client.header(AUTH_HEADER, format!("Bearer {}", token));
+    }
+
+    let response = match client.send() {
         Err(error) => {
             return Err(Error::new(
                 ErrorKind::GithubRestError,
@@ -149,18 +155,22 @@ fn get_tags(repo_id: &String) -> Result<Option<Vec<GithubTag>>, Error> {
 
 fn get_commits_from_commit_sha(
     repo_id: &String,
-    sha: String,
+    sha: &String,
+    token: &Option<String>,
 ) -> Result<Option<Vec<GithubCommitDetails>>, Error> {
     let client = reqwest::blocking::Client::new();
-    let response = client
+    let mut client = client
         .get(format!(
             "{}/{}{}?sha={}",
             GITHUB_BASE_URI, repo_id, GITHUB_COMMITS_URI, sha
         ))
-        .header(reqwest::header::USER_AGENT, USER_AGENT)
-        .send();
+        .header(reqwest::header::USER_AGENT, USER_AGENT);
 
-    let response = match response {
+    if let Some(token) = token {
+        client = client.header(AUTH_HEADER, format!("Bearer {}", token));
+    }
+
+    let response = match client.send() {
         Err(error) => {
             return Err(Error::new(
                 ErrorKind::GithubRestError,

@@ -31,10 +31,10 @@ jobs:
           targets: ${{ matrix.os-target.target }}
       - uses: Swatinem/rust-cache@v2
       - name: Install aarch64-unknown-linux-gnu requisites
-        run: sudo apt update && sudo apt-get install g++-aarch64-linux-gnu -y
+        run: sudo apt update && sudo apt-get install -y g++-aarch64-linux-gnu
         if: matrix.os-target.target == 'aarch64-unknown-linux-gnu'
       - name: Run trag-track
-        run: cargo run -- --create-tag --github-repo dloez/tag-track
+        run: cargo run -- --create-tag --github-repo dloez/tag-track --github-token ${{ github.token }}
       - name: Run cargo build
         run: cargo build --release --target ${{ matrix.os-target.target }}
       - name: Upload artifacts for reuse in release job
