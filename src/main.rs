@@ -97,8 +97,8 @@ fn main() {
 
     let patterns: HashMap<version::IncrementKind, &'static str> = HashMap::from([
         (version::IncrementKind::Major, MAJOR_REGEX_PATTERN),
-        (version::IncrementKind::Patch, PATCH_REGEX_PATTERN),
         (version::IncrementKind::Minor, MINOR_REGEX_PATTERN),
+        (version::IncrementKind::Patch, PATCH_REGEX_PATTERN),
     ]);
 
     let mut increment_kind: Option<&version::IncrementKind> = None;
@@ -111,8 +111,8 @@ fn main() {
                         increment_kind = Some(kind);
                         break;
                     }
-                    version::IncrementKind::Patch => increment_kind = Some(kind),
-                    version::IncrementKind::Minor => {
+                    version::IncrementKind::Minor => increment_kind = Some(kind),
+                    version::IncrementKind::Patch => {
                         if increment_kind.is_some() {
                             continue;
                         }
