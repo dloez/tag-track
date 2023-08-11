@@ -30,7 +30,7 @@ struct Args {
 
     // Token to authenticate  GitHub REST API calls.
     #[clap(short = 't', long)]
-    github_token: Option<String>
+    github_token: Option<String>,
 }
 
 fn main() {
@@ -59,7 +59,9 @@ fn main() {
     };
 
     let mut source: source::SourceKind = match args.github_repo {
-        Some(repo) => source::SourceKind::Github(source::github::GithubSource::new(repo, args.github_token)),
+        Some(repo) => {
+            source::SourceKind::Github(source::github::GithubSource::new(repo, args.github_token))
+        }
         None => source::SourceKind::Git(source::git::GitSource::new()),
     };
 
