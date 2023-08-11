@@ -34,7 +34,7 @@ jobs:
         run: sudo apt update && sudo apt-get install g++-aarch64-linux-gnu -y
         if: matrix.os-target.target == 'aarch64-unknown-linux-gnu'
       - name: Run trag-track
-        run: cargo run -- --create-tag --github-repo dloez/tag-track
+        run: cargo run -- --create-tag --github-repo dloez/tag-track --github-token ${{ github.token }}
       - name: Run cargo build
         run: cargo build --release --target ${{ matrix.os-target.target }}
       - name: Upload artifacts for reuse in release job

@@ -25,8 +25,12 @@ struct Args {
 
     // GitHUb repository identifier (owner/repo_name).
     // If pressent, this will use GitHub as the source to calculate a version bump.
-    #[arg(short, long, default_value = None)]
+    #[clap(short = 'r', long)]
     github_repo: Option<String>,
+
+    // Token to authenticate  GitHub REST API calls.
+    #[clap(short = 't', long)]
+    github_token: Option<String>
 }
 
 fn main() {
@@ -55,7 +59,7 @@ fn main() {
     };
 
     let mut source: source::SourceKind = match args.github_repo {
-        Some(repo) => source::SourceKind::Github(source::github::GithubSource::new(repo)),
+        Some(repo) => source::SourceKind::Github(source::github::GithubSource::new(repo, args.github_token)),
         None => source::SourceKind::Git(source::git::GitSource::new()),
     };
 
