@@ -9,6 +9,6 @@ edition = "2021"
 clap = { version = "4.3.14", features = ["derive"] }
 enum_dispatch = "0.3.12"
 regex = "1.9.1"
-reqwest = { version = "0.11.18", features = ["json", "blocking"] }
+reqwest = { version = "0.11.18", features = ["json", "blocking", "native-tls-vendored"] }
 semver = "1.0.18"
 serde = { version = "1.0.183", features = ["derive"] }
