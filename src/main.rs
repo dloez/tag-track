@@ -140,7 +140,7 @@ fn main() {
     let result = git::create_tag(&version.to_string(), &tag_message);
     match result {
         Err(error) => {
-            println!("failed to create tag '{}', error: {}", version, error);
+            println!("{}", error);
             exit(1);
         }
         Ok(_) => println!("tag '{}' created!", version),
