@@ -4,6 +4,13 @@ on:
     branches:
       - main
   workflow_call:
+    inputs:
+      push-tags:
+        type: boolean
+        description: |
+          Control if created tags by `tag-track` need to be pushed.
+        required: true
+        default: false
 jobs:
   build:
     strategy:
@@ -44,6 +51,9 @@ jobs:
           path: ${{ github.workspace }}/target/${{ matrix.os-target.target }}/release/tag-track${{ matrix.os-target.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
           if-no-files-found: error
           retention-days: 5
+      - name: Push tags
+        run: git push origin --tags
+        if: ${{ inputs.push-tags == 'true' }}
   lint:
     runs-on: ubuntu-latest
     steps:
