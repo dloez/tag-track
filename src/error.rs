@@ -1,4 +1,4 @@
-use std::{fmt, env::VarError};
+use std::{env::VarError, fmt};
 
 #[derive(Debug)]
 pub enum ErrorKind {
@@ -65,7 +65,7 @@ impl From<VarError> for Error {
     fn from(error: VarError) -> Self {
         Self {
             kind: ErrorKind::Other,
-            message: error.to_string()
+            message: error.to_string(),
         }
     }
 }
@@ -74,7 +74,7 @@ impl From<semver::Error> for Error {
     fn from(error: semver::Error) -> Self {
         Self {
             kind: ErrorKind::Other,
-            message: error.to_string()
+            message: error.to_string(),
         }
     }
 }

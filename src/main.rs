@@ -2,10 +2,10 @@ use clap::Parser;
 use regex::Regex;
 use semver::Version;
 use serde::Serialize;
+use serde_json::to_string_pretty;
 use source::SourceActions;
 use std::env;
 use std::{collections::HashMap, process::exit};
-use serde_json::to_string_pretty;
 
 mod error;
 mod git;
@@ -45,7 +45,7 @@ struct Output {
     created_tag: bool,
     old_version: String,
     new_version: String,
-    error: String
+    error: String,
 }
 
 impl Output {
@@ -55,14 +55,14 @@ impl Output {
             created_tag: false,
             old_version: "".to_owned(),
             new_version: "".to_owned(),
-            error: "".to_owned()
+            error: "".to_owned(),
         }
     }
 }
 
 enum OutputFormat {
     Text,
-    JSON
+    Json,
 }
 
 fn main() {
@@ -70,9 +70,9 @@ fn main() {
 
     let output_format = match args.output_format.as_str() {
         "text" => OutputFormat::Text,
-        "json" => OutputFormat::JSON,
+        "json" => OutputFormat::Json,
         value => {
-            let error = error::Error::new(error::ErrorKind::NotValidOutputFormat, Some(&value));
+            let error = error::Error::new(error::ErrorKind::NotValidOutputFormat, Some(value));
             println!("{}", error);
             exit(1);
         }
@@ -101,9 +101,10 @@ fn main() {
     };
 
     let mut source: source::SourceKind = match args.github_repo.clone() {
-        Some(repo) => {
-            source::SourceKind::Github(source::github::GithubSource::new(repo, args.github_token.clone()))
-        }
+        Some(repo) => source::SourceKind::Github(source::github::GithubSource::new(
+            repo,
+            args.github_token.clone(),
+        )),
         None => source::SourceKind::Git(source::git::GitSource::new()),
     };
 
@@ -169,7 +170,7 @@ fn main() {
     if increment_kind.is_none() {
         match output_format {
             OutputFormat::Text => println!("version bump not required"),
-            OutputFormat::JSON => {
+            OutputFormat::Json => {
                 let mut output = Output::new(&args);
                 output.old_version = version.to_string();
                 output.new_version = version.to_string();
@@ -195,8 +196,11 @@ fn main() {
     output.new_version = version.to_string();
 
     match output_format {
-        OutputFormat::Text => println!("version change: {} -> {}", output.old_version, output.new_version),
-        OutputFormat::JSON => {
+        OutputFormat::Text => println!(
+            "version change: {} -> {}",
+            output.old_version, output.new_version
+        ),
+        OutputFormat::Json => {
             if let Ok(json_str) = to_string_pretty(&output) {
                 println!("{}", json_str);
             } else {
@@ -220,7 +224,7 @@ fn main() {
             output.created_tag = true;
             match output_format {
                 OutputFormat::Text => println!("tag '{}' created!", version),
-                OutputFormat::JSON => {
+                OutputFormat::Json => {
                     if let Ok(json_str) = to_string_pretty(&output) {
                         println!("{}", json_str);
                     } else {
@@ -228,14 +232,14 @@ fn main() {
                     }
                 }
             }
-        },
+        }
     }
 }
 
 fn return_error(output_format: OutputFormat, error: error::Error, inputs: &Args) {
     match output_format {
         OutputFormat::Text => println!("{}", error),
-        OutputFormat::JSON => {
+        OutputFormat::Json => {
             let mut output = Output::new(inputs);
             output.error = format!("{}", error);
             if let Ok(json_str) = to_string_pretty(&output) {
