@@ -1,0 +1,62 @@
+name: Create release
+on:
+  push:
+    tags:
+      - "*.*.*"
+jobs:
+  call-build_lint:
+    uses: ./.github/workflows/build_lint.yml
+    secrets: inherit
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.set-tag.outputs.tag }}
+    steps:
+      # - uses: actions/checkout@v3
+      # - name: Generate release notes
+      #   run: |
+      #     sed 's/{version}/${{ needs.setup-validation.outputs.version }}/g' ${{ github.workspace }}/.github/release_notes.template \
+      #     > ${{ github.workspace }}/.github/release_notes.txt
+      - name: Set tag
+        id: set-tag
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          generate_release_notes: true
+          name: Tag Track - ${{ steps.set-tag.outputs.tag }}
+          tag_name: ${{ steps.set-tag.outputs.tag }}
+          # body_path: ${{ github.workspace }}/.github/release_notes.txt
+          target_commitish: ${{ github.base_ref }}
+          prerelease: true
+  upload-to-release:
+    needs: [call-build_lint, release]
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-pc-windows-msvc
+          - x86_64-apple-darwin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: tag-track_${{ matrix.target }}
+          path: ${{ github.workspace }}/target/${{ matrix.target }}/release
+      - name: Upload tag-track binary to release
+        run: |
+          mv ${{ github.workspace }}/target/${{ matrix.target }}/release/tag-track${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} \
+          tag-track_${{ matrix.target }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
+          gh release upload ${{ needs.release.outputs.tag }} \
+          tag-track_${{ matrix.target }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
