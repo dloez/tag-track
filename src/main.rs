@@ -1,9 +1,11 @@
 use clap::Parser;
 use regex::Regex;
 use semver::Version;
+use serde::Serialize;
 use source::SourceActions;
 use std::env;
 use std::{collections::HashMap, process::exit};
+use serde_json::to_string_pretty;
 
 mod error;
 mod git;
@@ -16,7 +18,7 @@ const PATCH_REGEX_PATTERN: &str = r"^fix:";
 
 const GITHUB_ACTION_COMMIT_SHA_VAR: &str = "GITHUB_SHA";
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Serialize, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     // Create git annotated tag from populated version.
@@ -25,19 +27,59 @@ struct Args {
 
     // GitHUb repository identifier (owner/repo_name).
     // If pressent, this will use GitHub as the source to calculate a version bump.
-    #[clap(short = 'r', long)]
+    #[arg(short = 'r', long)]
     github_repo: Option<String>,
 
     // Token to authenticate  GitHub REST API calls.
-    #[clap(short = 't', long)]
+    #[arg(short = 't', long)]
     github_token: Option<String>,
+
+    // Output format, possible values are: 'text', 'json'. Default value is 'text'.
+    #[arg(short, long, default_value = "text", default_missing_value = "text")]
+    output_format: String,
+}
+
+#[derive(Serialize, Debug)]
+struct Output {
+    inputs: Args,
+    created_tag: bool,
+    old_version: String,
+    new_version: String,
+    error: String
+}
+
+impl Output {
+    fn new(inputs: &Args) -> Self {
+        Self {
+            inputs: inputs.clone(),
+            created_tag: false,
+            old_version: "".to_owned(),
+            new_version: "".to_owned(),
+            error: "".to_owned()
+        }
+    }
+}
+
+enum OutputFormat {
+    Text,
+    JSON
 }
 
 fn main() {
     let args = Args::parse();
 
+    let output_format = match args.output_format.as_str() {
+        "text" => OutputFormat::Text,
+        "json" => OutputFormat::JSON,
+        value => {
+            let error = error::Error::new(error::ErrorKind::NotValidOutputFormat, Some(&value));
+            println!("{}", error);
+            exit(1);
+        }
+    };
+
     if let Err(error) = git::verify_git() {
-        println!("{}", error);
+        return_error(output_format, error, &args);
         exit(1);
     }
 
@@ -45,28 +87,28 @@ fn main() {
         Some(_) => match env::var(GITHUB_ACTION_COMMIT_SHA_VAR) {
             Ok(commit_sha) => commit_sha,
             Err(error) => {
-                println!("{}", error);
+                return_error(output_format, error::Error::from(error), &args);
                 exit(1);
             }
         },
         None => match git::get_current_commit_sha() {
             Ok(current_commit) => current_commit,
             Err(error) => {
-                println!("{}", error);
+                return_error(output_format, error, &args);
                 exit(1);
             }
         },
     };
 
-    let mut source: source::SourceKind = match args.github_repo {
+    let mut source: source::SourceKind = match args.github_repo.clone() {
         Some(repo) => {
-            source::SourceKind::Github(source::github::GithubSource::new(repo, args.github_token))
+            source::SourceKind::Github(source::github::GithubSource::new(repo, args.github_token.clone()))
         }
         None => source::SourceKind::Git(source::git::GitSource::new()),
     };
 
     if let Err(error) = source.fetch_from_commit(current_commit_sha) {
-        println!("{}", error);
+        return_error(output_format, error, &args);
         exit(1);
     };
 
@@ -74,7 +116,7 @@ fn main() {
     let closest_tag = match source.get_closest_tag() {
         Ok(tag) => tag,
         Err(error) => {
-            println!("{}", error);
+            return_error(output_format, error, &args);
             exit(1);
         }
     };
@@ -82,7 +124,7 @@ fn main() {
     let mut version = match Version::parse(closest_tag) {
         Ok(version) => version,
         Err(error) => {
-            println!("{}", error);
+            return_error(output_format, error::Error::from(error), &args);
             exit(1);
         }
     };
@@ -90,7 +132,7 @@ fn main() {
     let commit_messages = match source.get_commit_messages() {
         Ok(commit_messages) => commit_messages,
         Err(error) => {
-            println!("{}", error);
+            return_error(output_format, error, &args);
             exit(1);
         }
     };
@@ -125,18 +167,43 @@ fn main() {
     let increment_kind = increment_kind;
 
     if increment_kind.is_none() {
-        println!("version bump not required");
+        match output_format {
+            OutputFormat::Text => println!("version bump not required"),
+            OutputFormat::JSON => {
+                let mut output = Output::new(&args);
+                output.old_version = version.to_string();
+                output.new_version = version.to_string();
+                if let Ok(json_str) = to_string_pretty(&output) {
+                    println!("{}", json_str);
+                } else {
+                    println!("could not serialize {:?}", output);
+                }
+            }
+        }
         exit(0);
     }
 
+    let mut output = Output::new(&args);
+    output.old_version = version.to_string();
+
     let kind = increment_kind.unwrap();
-    print!("version change: {} -> ", version);
     match kind {
         version::IncrementKind::Major => version::increment_major(&mut version),
         version::IncrementKind::Minor => version::increment_minor(&mut version),
         version::IncrementKind::Patch => version::increment_patch(&mut version),
     }
-    println!("{}", version);
+    output.new_version = version.to_string();
+
+    match output_format {
+        OutputFormat::Text => println!("version change: {} -> {}", output.old_version, output.new_version),
+        OutputFormat::JSON => {
+            if let Ok(json_str) = to_string_pretty(&output) {
+                println!("{}", json_str);
+            } else {
+                println!("could not serialize {:?}", output);
+            }
+        }
+    }
 
     if !args.create_tag {
         exit(0);
@@ -146,9 +213,36 @@ fn main() {
     let result = git::create_tag(&version.to_string(), &tag_message);
     match result {
         Err(error) => {
-            println!("{}", error);
+            return_error(output_format, error, &args);
             exit(1);
         }
-        Ok(_) => println!("tag '{}' created!", version),
+        Ok(_) => {
+            output.created_tag = true;
+            match output_format {
+                OutputFormat::Text => println!("tag '{}' created!", version),
+                OutputFormat::JSON => {
+                    if let Ok(json_str) = to_string_pretty(&output) {
+                        println!("{}", json_str);
+                    } else {
+                        println!("could not serialize {:?}", output);
+                    }
+                }
+            }
+        },
+    }
+}
+
+fn return_error(output_format: OutputFormat, error: error::Error, inputs: &Args) {
+    match output_format {
+        OutputFormat::Text => println!("{}", error),
+        OutputFormat::JSON => {
+            let mut output = Output::new(inputs);
+            output.error = format!("{}", error);
+            if let Ok(json_str) = to_string_pretty(&output) {
+                println!("{}", json_str);
+            } else {
+                println!("could not serialize {:?}", output);
+            }
+        }
     }
 }

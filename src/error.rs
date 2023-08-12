@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, env::VarError};
 
 #[derive(Debug)]
 pub enum ErrorKind {
@@ -10,6 +10,7 @@ pub enum ErrorKind {
     MissingGitTags,
     MissingGitCommits,
     MissingGitClosestTag,
+    NotValidOutputFormat,
     Other,
 }
 
@@ -26,6 +27,7 @@ impl ErrorKind {
             MissingGitTags => "ther are no tags in source",
             MissingGitCommits => "there are no commits in source",
             MissingGitClosestTag => "cannot find closest tag",
+            NotValidOutputFormat => "the specified output format is not valid",
             Other => "other error",
         }
     }
@@ -56,5 +58,23 @@ impl Error {
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "{}: {}", self.kind.as_str(), self.message)
+    }
+}
+
+impl From<VarError> for Error {
+    fn from(error: VarError) -> Self {
+        Self {
+            kind: ErrorKind::Other,
+            message: error.to_string()
+        }
+    }
+}
+
+impl From<semver::Error> for Error {
+    fn from(error: semver::Error) -> Self {
+        Self {
+            kind: ErrorKind::Other,
+            message: error.to_string()
+        }
     }
 }
