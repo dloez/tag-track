@@ -195,21 +195,21 @@ fn main() {
     }
     output.new_version = version.to_string();
 
-    match output_format {
-        OutputFormat::Text => println!(
+    if let OutputFormat::Text = output_format {
+        println!(
             "version change: {} -> {}",
             output.old_version, output.new_version
-        ),
-        OutputFormat::Json => {
+        )
+    }
+
+    if !args.create_tag {
+        if let OutputFormat::Json = output_format {
             if let Ok(json_str) = to_string_pretty(&output) {
                 println!("{}", json_str);
             } else {
                 println!("could not serialize {:?}", output);
             }
         }
-    }
-
-    if !args.create_tag {
         exit(0);
     }
 

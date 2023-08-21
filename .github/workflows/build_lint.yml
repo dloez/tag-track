@@ -23,7 +23,7 @@ jobs:
       - name: Setup rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.70.0
+          toolchain: 1.70.1
           targets: ${{ matrix.os-target.target }}
       - uses: Swatinem/rust-cache@v2
       - name: Install aarch64-unknown-linux-gnu requisites
@@ -47,7 +47,7 @@ jobs:
       - name: Setup rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.70.0
+          toolchain: 1.70.1
           components: clippy,rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: Run clippy

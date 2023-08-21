@@ -1,27 +1,52 @@
-name: Create release
+name: Create tag and release
 on:
   push:
-    tags:
-      - "*.*.*"
+    branches:
+      - main
 jobs:
   call-build_lint:
     uses: ./.github/workflows/build_lint.yml
     secrets: inherit
+  create_tag:
+    runs-on: ubuntu-latest
+    needs: call-build_lint
+    permissions:
+      contents: write
+    outputs:
+      created_tag: ${{ steps.tag-track.outputs.created_tag }}
+      new_version: ${{ steps.tag-track.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Configure git author
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+      - name: Setup rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.70.1
+          targets: ${{ matrix.os-target.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Run trag-track
+        id: tag-track
+        run: |
+          output=$(cargo run -- --create-tag --github-repo dloez/tag-track --github-token ${{ github.token }})
+          echo "created_tag=$(echo $output | jq '.created_tag')" >> $GITHUB_OUTPUT
+          echo "new_version=$(echo $output | jq '.new_version')" >> $GITHUB_OUTPUT
+      - name: Push tags
+        run: git push origin --tags
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    outputs:
-      tag: ${{ steps.set-tag.outputs.tag }}
+    needs: create_tag
+    if: ${{ needs.create_tag.outputs.created_tag == 'true' }}
     steps:
       # - uses: actions/checkout@v3
       # - name: Generate release notes
       #   run: |
       #     sed 's/{version}/${{ needs.setup-validation.outputs.version }}/g' ${{ github.workspace }}/.github/release_notes.template \
       #     > ${{ github.workspace }}/.github/release_notes.txt
-      - name: Set tag
-        id: set-tag
-        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: Create release
         uses: softprops/action-gh-release@v1
         id: release
@@ -29,13 +54,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           generate_release_notes: true
-          name: Tag Track - ${{ steps.set-tag.outputs.tag }}
-          tag_name: ${{ steps.set-tag.outputs.tag }}
+          name: Tag Track - ${{ needs.create_tag.outputs.new_version }}
+          tag_name: ${{ needs.create_tag.outputs.new_version }}
           # body_path: ${{ github.workspace }}/.github/release_notes.txt
           target_commitish: ${{ github.base_ref }}
           prerelease: true
   upload-to-release:
-    needs: [call-build_lint, release]
+    needs: [create_tag, release]
     permissions:
       contents: write
     strategy:
@@ -56,7 +81,7 @@ jobs:
         run: |
           mv ${{ github.workspace }}/target/${{ matrix.target }}/release/tag-track${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }} \
           tag-track_${{ matrix.target }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
-          gh release upload ${{ needs.release.outputs.tag }} \
+          gh release upload ${{ needs.create_tag.outputs.new_version }} \
           tag-track_${{ matrix.target }}${{ matrix.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
