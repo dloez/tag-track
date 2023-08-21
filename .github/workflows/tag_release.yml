@@ -24,7 +24,7 @@ jobs:
       - name: Setup rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.70.1
+          toolchain: 1.71.0
           targets: ${{ matrix.os-target.target }}
       - uses: Swatinem/rust-cache@v2
       - name: Run trag-track
