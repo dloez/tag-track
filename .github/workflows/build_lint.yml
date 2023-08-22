@@ -4,6 +4,9 @@ on:
     branches:
       - main
   workflow_call:
+defaults:
+  run:
+    shell: bash
 jobs:
   build:
     strategy:
