@@ -1,9 +1,10 @@
 use std::{
     io::{Error, ErrorKind},
     process::Command,
+    env
 };
 
-fn get_closest_tag() -> Result<String, Error> {
+fn get_version_from_closest_tag() -> Result<String, Error> {
     let output = Command::new("git")
         .arg("describe")
         .arg("--abbrev=0")
@@ -26,9 +27,31 @@ fn get_closest_tag() -> Result<String, Error> {
     Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
+fn get_version_from_env(env_var_name: &str) -> Option<String> {
+    match env::var(env_var_name) {
+        Ok(v) => Some(v),
+        Err(_) => None
+    }
+}
+
+fn print_cargo_version(version: String) {
+    println!("cargo:rustc-env=CARGO_PKG_VERSION={}", version)
+}
+
+static ENV_VAR_NAME: &str = "TAG_TRACK_VERSION";
+
 fn main() {
-    match get_closest_tag() {
-        Err(_) => println!("cargo:rustc-env=CARGO_PKG_VERSION=0.1.0"),
-        Ok(tag) => println!("cargo:rustc-env=CARGO_PKG_VERSION={}", tag),
-    };
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=.git");
+    println!("cargo:rerun-if-env-changed={}", ENV_VAR_NAME);
+
+    if let Some(version) = get_version_from_env(ENV_VAR_NAME) {
+        print_cargo_version(version);
+        return;
+    }
+
+    if let Ok(version) = get_version_from_closest_tag() {
+        print_cargo_version(version);
+        return;
+    }
 }
