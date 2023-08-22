@@ -36,6 +36,7 @@ jobs:
         id: tag-track
         run: |
           output=$(cargo run -- --github-repo dloez/tag-track --github-token ${{ github.token }} --output-format json)
+          echo $output
           echo "new_version=$(echo $output | jq -r '.new_version')" >> $GITHUB_OUTPUT
       - name: Output from tag-track
         run: echo ${{ steps.tag-track.outputs.new_version }}
