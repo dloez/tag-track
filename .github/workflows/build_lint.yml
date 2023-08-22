@@ -30,9 +30,14 @@ jobs:
         run: sudo apt update && sudo apt-get install -y g++-aarch64-linux-gnu
         if: matrix.os-target.target == 'aarch64-unknown-linux-gnu'
       - name: Run trag-track
-        run: cargo run -- --github-repo dloez/tag-track --github-token ${{ github.token }}
+        id: tag-track
+        run: |
+          output=$(cargo run -- --github-repo dloez/tag-track --github-token ${{ github.token }} --output-format json)
+          echo "new_version=$(echo $output | jq -r '.new_version')" >> $GITHUB_OUTPUT
+      - name: Output from tag-track
+        run: echo ${{ steps.tag-track.outputs.new_version }}
       - name: Run cargo build
-        run: cargo build --release --target ${{ matrix.os-target.target }}
+        run: TAG_TRACK_VERSION=${{ steps.tag-track.outputs.new_version }} cargo build --release --target ${{ matrix.os-target.target }}
       - name: Upload artifacts for reuse in release job
         uses: actions/upload-artifact@v3
         with:
