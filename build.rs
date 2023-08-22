@@ -1,7 +1,7 @@
 use std::{
+    env,
     io::{Error, ErrorKind},
     process::Command,
-    env
 };
 
 fn get_version_from_closest_tag() -> Result<String, Error> {
@@ -30,7 +30,7 @@ fn get_version_from_closest_tag() -> Result<String, Error> {
 fn get_version_from_env(env_var_name: &str) -> Option<String> {
     match env::var(env_var_name) {
         Ok(v) => Some(v),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
@@ -52,6 +52,5 @@ fn main() {
 
     if let Ok(version) = get_version_from_closest_tag() {
         print_cargo_version(version);
-        return;
     }
 }
