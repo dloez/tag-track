@@ -35,7 +35,8 @@ jobs:
       - name: Run trag-track
         id: tag-track
         run: |
-          output=$(cargo run -- --github-repo dloez/tag-track --github-token ${{ github.token }} --output-format json)
+          exec 5>&1
+          output=$(cargo run -- --github-repo dloez/tag-track --github-token ${{ github.token }} --output-format json | tee >(cat - >&5))
           echo $output
           echo "new_version=$(echo $output | jq -r '.new_version')" >> $GITHUB_OUTPUT
       - name: Output from tag-track
