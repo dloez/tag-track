@@ -1,0 +1,40 @@
+## Installation
+Use one of the following methods
+
+### Automatic installation (recommended)
+Supported OS:
+- Linux
+- macOS
+- Windows
+
+Linux/macOS requisites:
+- wget
+
+Linux/macOS:
+1. Open a shell and run:
+```sh
+curl https://raw.githubusercontent.com/dloez/tag-track/{version}/install.sh | sh -s {version}
+```
+2. Restart the shell. The script will also print a source command that you can run to avoid re-opening a shell to force changes.
+
+Windows:
+1. Open a powershell window and run: 
+```ps
+$null = Invoke-WebRequest -Uri https://raw.githubusercontent.com/dloez/tag-track/{version}/install.ps1 -OutFile "install.ps1"; powershell -ExecutionPolicy Bypass -File "./install.ps1" -ArgumentList "{version}"; Remove-Item "install.ps1" -Force
+```
+2. Add the printed by the installer path to the PATH system/user environment variable and open a new powershell window.
+
+### Manual installation
+Use this method if your OS is currently not available in the automatic installation.
+
+1. Download your platform binary from the [release page](https://github.com/dloez/tag-track/releases/tag/{version}).
+2. Place the binary in a directory that is on the system `PATH` or add the directory to the `PATH`.
+3. Verify that the binary has execution permission on Linux/macOS (`chmod +x tag-track`).
+
+### Installing from source
+Use this method if you cannot find a pre-built binary for your platform. `tag-track` does not use any platform specific code, so if your platform is listed in the [supported Rust platforms](https://doc.rust-lang.org/nightly/rustc/platform-support.html), you should be able to easily build `tag-track`.
+
+1. Check if your platform is [supported by Rust](https://doc.rust-lang.org/nightly/rustc/platform-support.html).
+2. [Download and install the Rust toolchain](https://www.rust-lang.org/tools/install) version >= 1.70.0. The installer will configure the required targets for your platform automatically, but depending on your platform you may need additional steps.
+3. Clone the repository.
+4. Run `cargo install`.
