@@ -46,11 +46,11 @@ jobs:
     needs: create_tag
     if: ${{ needs.create_tag.outputs.created_tag == 'true' }}
     steps:
-      # - uses: actions/checkout@v3
-      # - name: Generate release notes
-      #   run: |
-      #     sed 's/{version}/${{ needs.setup-validation.outputs.version }}/g' ${{ github.workspace }}/.github/release_notes.template \
-      #     > ${{ github.workspace }}/.github/release_notes.txt
+      - uses: actions/checkout@v3
+      - name: Generate release notes
+        run: |
+          sed 's/{version}/${{ needs.create_tag.outputs.new_version }}/g' ${{ github.workspace }}/.github/release_notes.template \
+          > ${{ github.workspace }}/.github/release_notes.txt
       - name: Create release
         uses: softprops/action-gh-release@v1
         id: release
@@ -60,7 +60,7 @@ jobs:
           generate_release_notes: true
           name: Tag Track - ${{ needs.create_tag.outputs.new_version }}
           tag_name: ${{ needs.create_tag.outputs.new_version }}
-          # body_path: ${{ github.workspace }}/.github/release_notes.txt
+          body_path: ${{ github.workspace }}/.github/release_notes.txt
           target_commitish: ${{ github.base_ref }}
           prerelease: true
   upload-to-release:
