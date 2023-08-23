@@ -3,6 +3,14 @@ use crate::source::SourceActions;
 use reqwest;
 use serde::Deserialize;
 
+const GITHUB_BASE_URI: &str = "https://api.github.com/repos";
+const GITHUB_TAGS_URI: &str = "/tags";
+const GITHUB_COMMITS_URI: &str = "/commits";
+const USER_AGENT: &str = "tag-track";
+const AUTH_HEADER: &str = "authorization";
+
+const DEFAULT_PER_PAGE: u64 = 100;
+
 pub struct GithubSource {
     commit_messages: Vec<String>,
     closest_tag: String,
@@ -33,12 +41,17 @@ impl SourceActions for GithubSource {
             None => return Err(Error::new(ErrorKind::MissingGitTags, None)),
         };
 
-        let commits = match get_commits_from_commit_sha(&self.repo_id, &sha, &self.token)? {
-            Some(commits) => commits,
-            None => return Err(Error::new(ErrorKind::MissingGitCommits, None)),
-        };
+        // let commits = match get_commits_from_commit_sha(&self.repo_id, &sha, &self.token)? {
+        //     Some(commits) => commits,
+        //     None => return Err(Error::new(ErrorKind::MissingGitCommits, None)),
+        // };
 
-        for commit in commits {
+        let commit_iterator = CommitIterator::new(&self.repo_id, &self.token, &sha);
+        for commit in commit_iterator {
+            let commit = match commit {
+                Ok(commit) => commit,
+                Err(error) => return Err(error),
+            };
             let tag = find_tag_from_commit_sha(commit.sha, &tags);
 
             if let Some(tag) = tag {
@@ -78,12 +91,6 @@ impl SourceActions for GithubSource {
     }
 }
 
-const GITHUB_BASE_URI: &str = "https://api.github.com/repos";
-const GITHUB_TAGS_URI: &str = "/tags";
-const GITHUB_COMMITS_URI: &str = "/commits";
-const USER_AGENT: &str = "tag-track";
-const AUTH_HEADER: &str = "authorization";
-
 #[derive(Debug, Deserialize, Clone)]
 struct GithubTag {
     name: String,
@@ -95,15 +102,73 @@ struct GithubTagCommit {
     sha: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 struct GithubCommitDetails {
     sha: String,
     commit: GithubCommit,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 struct GithubCommit {
     message: String,
+}
+
+struct CommitIterator<'a> {
+    page: u64,
+    per_page: u64,
+    commits: Vec<GithubCommitDetails>,
+    repo_id: &'a String,
+    token: &'a Option<String>,
+    sha: &'a String,
+
+    max_elem: u64,
+    current_elem: u64,
+}
+
+impl Iterator for CommitIterator<'_> {
+    type Item = Result<GithubCommitDetails, Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_elem == self.max_elem {
+            self.commits = match get_commits_from_commit_sha(
+                self.repo_id,
+                self.sha,
+                self.token,
+                &self.page,
+                &self.per_page,
+            ) {
+                Ok(commits) => commits,
+                Err(error) => {
+                    return Some(Err(error));
+                }
+            };
+
+            // max_element max value will be github per_page max element, which is currently 100
+            // and will """never""" exceed u64 size.
+            self.max_elem = self.commits.len() as u64;
+            self.current_elem = 0;
+            self.page += 1;
+        }
+
+        let commit = self.commits.get(self.current_elem as usize);
+        self.current_elem += 1;
+        Ok(commit.cloned()).transpose()
+    }
+}
+
+impl<'a> CommitIterator<'a> {
+    fn new(repo_id: &'a String, token: &'a Option<std::string::String>, sha: &'a String) -> Self {
+        CommitIterator {
+            page: 0,
+            per_page: DEFAULT_PER_PAGE,
+            commits: vec![],
+            repo_id,
+            token,
+            sha,
+            max_elem: 0,
+            current_elem: 0,
+        }
+    }
 }
 
 fn get_tags(repo_id: &String, token: &Option<String>) -> Result<Option<Vec<GithubTag>>, Error> {
@@ -157,12 +222,14 @@ fn get_commits_from_commit_sha(
     repo_id: &String,
     sha: &String,
     token: &Option<String>,
-) -> Result<Option<Vec<GithubCommitDetails>>, Error> {
+    page: &u64,
+    per_page: &u64,
+) -> Result<Vec<GithubCommitDetails>, Error> {
     let client = reqwest::blocking::Client::new();
     let mut client = client
         .get(format!(
-            "{}/{}{}?sha={}",
-            GITHUB_BASE_URI, repo_id, GITHUB_COMMITS_URI, sha
+            "{}/{}{}?sha={}&page={}&per_page={}",
+            GITHUB_BASE_URI, repo_id, GITHUB_COMMITS_URI, sha, page, per_page
         ))
         .header(reqwest::header::USER_AGENT, USER_AGENT);
 
@@ -198,10 +265,7 @@ fn get_commits_from_commit_sha(
         },
     };
 
-    match commits.len() {
-        0 => Ok(None),
-        _ => Ok(Some(commits)),
-    }
+    Ok(commits)
 }
 
 fn find_tag_from_commit_sha(sha: String, tags: &Vec<GithubTag>) -> Option<GithubTag> {
