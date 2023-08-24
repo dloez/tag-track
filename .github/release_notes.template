@@ -20,7 +20,7 @@ curl https://raw.githubusercontent.com/dloez/tag-track/{version}/install.sh | sh
 Windows:
 1. Open a powershell window and run: 
 ```ps
-$null = Invoke-WebRequest -Uri https://raw.githubusercontent.com/dloez/tag-track/{version}/install.ps1 -OutFile "install.ps1"; powershell -ExecutionPolicy Bypass -File "./install.ps1" -ArgumentList "{version}"; Remove-Item "install.ps1" -Force
+$null = Invoke-WebRequest -Uri https://raw.githubusercontent.com/dloez/tag-track/{version}/install.ps1 -OutFile "install.ps1"; powershell -ExecutionPolicy Bypass -File "./install.ps1" "{version}"; Remove-Item "install.ps1" -Force
 ```
 2. Add the printed by the installer path to the PATH system/user environment variable and open a new powershell window.
 
