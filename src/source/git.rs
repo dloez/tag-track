@@ -39,7 +39,7 @@ impl SourceActions for GitSource {
             Err(error) => return Err(error),
         };
 
-        self.commit_messages = match git::get_commit_messages(&sha, &self.closest_tag_commit_sha) {
+        self.commit_messages = match git::get_commit_messages(&self.closest_tag_commit_sha, &sha) {
             Ok(commit_messages) => commit_messages,
             Err(error) => return Err(error),
         };
