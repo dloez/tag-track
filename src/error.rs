@@ -35,7 +35,7 @@ impl ErrorKind {
 
 impl fmt::Display for ErrorKind {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(self.as_str())
+        fmt.write_str(self.as_str().trim())
     }
 }
 
@@ -57,7 +57,11 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(fmt, "{}: {}", self.kind.as_str(), self.message)
+        let output = match self.message.is_empty() {
+            true => self.kind.as_str().to_string(),
+            false => format!("{}: {}", self.kind.as_str(), self.message.trim()),
+        };
+        write!(fmt, "{}", output)
     }
 }
 

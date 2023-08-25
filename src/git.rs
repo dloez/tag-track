@@ -47,9 +47,9 @@ pub fn get_current_commit_sha() -> Result<String, Error> {
         return Err(Error::new(
             ErrorKind::Other,
             Some(&format!(
-                "can not get current commit: {} - error code: {}",
-                stderr,
-                output.status.code().unwrap()
+                "can not get current commit, error code: \"{}\", stderr: \"{}\"",
+                output.status.code().unwrap(),
+                stderr.trim(),
             )),
         ));
     }
@@ -80,9 +80,9 @@ pub fn get_closest_tag() -> Result<String, Error> {
         return Err(Error::new(
             ErrorKind::Other,
             Some(&format!(
-                "can not get closest tag: {} - code: {}",
-                stderr,
-                output.status.code().unwrap()
+                "can not get closest tag, error code: \"{}\", stderr: \"{}\"",
+                output.status.code().unwrap(),
+                stderr.trim(),
             )),
         ));
     }
@@ -113,9 +113,9 @@ pub fn get_tag_commit_sha(tag: &str) -> Result<String, Error> {
         return Err(Error::new(
             ErrorKind::Other,
             Some(&format!(
-                "can not get tag commit sha: {} - code: {}",
-                stderr,
-                output.status.code().unwrap()
+                "can not get tag commit sha, error code: \"{}\", stderr: \"{}\"",
+                output.status.code().unwrap(),
+                stderr.trim(),
             )),
         ));
     }
@@ -147,11 +147,11 @@ pub fn get_commit_messages(from_commit: &str, until_commit: &str) -> Result<Vec<
         return Err(Error::new(
             ErrorKind::Other,
             Some(&format!(
-                "can not get commit between '{}' and '{}', stderr: {} - code: {}",
+                "can not get commit between '{}' and '{}', error code: \"{}\", stderr: \"{}\"",
                 from_commit,
                 until_commit,
-                stderr,
-                output.status.code().unwrap()
+                output.status.code().unwrap(),
+                stderr.trim(),
             )),
         ));
     }
@@ -182,10 +182,10 @@ pub fn create_tag(tag: &str, tag_message: &str) -> Result<(), Error> {
         return Err(Error::new(
             ErrorKind::Other,
             Some(&format!(
-                "can not create tag '{}', stderr: {} - code: {}",
+                "can not create tag '{}', error code: \"{}\", stderr: \"{}\"",
                 tag,
-                stderr,
-                output.status.code().unwrap()
+                output.status.code().unwrap(),
+                stderr.trim(),
             )),
         ));
     }
