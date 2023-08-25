@@ -91,7 +91,7 @@ pub fn get_closest_tag() -> Result<String, Error> {
     Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
-pub fn get_tag_commit_sha(tag: &String) -> Result<String, Error> {
+pub fn get_tag_commit_sha(tag: &str) -> Result<String, Error> {
     let output_result = Command::new("git")
         .arg("rev-list")
         .args(["-n", "1"])
@@ -124,10 +124,7 @@ pub fn get_tag_commit_sha(tag: &String) -> Result<String, Error> {
     Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
-pub fn get_commit_messages(
-    from_commit: &String,
-    until_commit: &String,
-) -> Result<Vec<String>, Error> {
+pub fn get_commit_messages(from_commit: &str, until_commit: &str) -> Result<Vec<String>, Error> {
     let output_result = Command::new("git")
         .arg("log")
         .arg("--format=%s")
@@ -163,7 +160,7 @@ pub fn get_commit_messages(
     Ok(stdout.lines().map(|s| s.to_owned()).collect())
 }
 
-pub fn create_tag(tag: &String, tag_message: &String) -> Result<(), Error> {
+pub fn create_tag(tag: &str, tag_message: &str) -> Result<(), Error> {
     let output_result = Command::new("git")
         .arg("tag")
         .args(["-a", tag])
