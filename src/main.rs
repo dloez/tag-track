@@ -4,7 +4,6 @@ use semver::Version;
 use serde::Serialize;
 use serde_json::to_string_pretty;
 use source::SourceActions;
-use std::env;
 use std::{collections::HashMap, process::exit};
 
 mod error;
@@ -16,26 +15,30 @@ const MAJOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf)!:";
 const MINOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf):";
 const PATCH_REGEX_PATTERN: &str = r"^fix:";
 
-const GITHUB_ACTION_COMMIT_SHA_VAR: &str = "GITHUB_SHA";
-
 #[derive(Parser, Debug, Serialize, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     // Create git annotated tag from populated version.
-    #[arg(short, long, default_value = "false", default_missing_value = "true")]
+    #[arg(long, default_value = "false", default_missing_value = "true")]
     create_tag: bool,
 
     // GitHUb repository identifier (owner/repo_name).
     // If pressent, this will use GitHub as the source to calculate a version bump.
-    #[arg(short = 'r', long)]
+    #[arg(long)]
     github_repo: Option<String>,
 
     // Token to authenticate  GitHub REST API calls.
-    #[arg(short = 't', long)]
+    #[arg(long)]
     github_token: Option<String>,
 
+    // All commits between the oldest closest tag and the one specified
+    // by this SHA will be used to calculate the version bump. Useful when using
+    // a remote reposity with different git history as the local repository.
+    #[arg(long)]
+    commit_sha: Option<String>,
+
     // Output format, possible values are: 'text', 'json'. Default value is 'text'.
-    #[arg(short, long, default_value = "text", default_missing_value = "text")]
+    #[arg(long, default_value = "text", default_missing_value = "text")]
     output_format: String,
 }
 
@@ -83,14 +86,8 @@ fn main() {
         exit(1);
     }
 
-    let current_commit_sha = match args.github_repo {
-        Some(_) => match env::var(GITHUB_ACTION_COMMIT_SHA_VAR) {
-            Ok(commit_sha) => commit_sha,
-            Err(error) => {
-                return_error(output_format, error::Error::from(error), &args);
-                exit(1);
-            }
-        },
+    let current_commit_sha: String = match &args.commit_sha {
+        Some(commit_sha) => commit_sha.to_owned(),
         None => match git::get_current_commit_sha() {
             Ok(current_commit) => current_commit,
             Err(error) => {
@@ -108,7 +105,7 @@ fn main() {
         None => source::SourceKind::Git(source::git::GitSource::new()),
     };
 
-    if let Err(error) = source.fetch_from_commit(current_commit_sha) {
+    if let Err(error) = source.fetch_from_commit(&current_commit_sha) {
         return_error(output_format, error, &args);
         exit(1);
     };

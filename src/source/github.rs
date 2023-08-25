@@ -35,7 +35,7 @@ impl GithubSource {
 }
 
 impl SourceActions for GithubSource {
-    fn fetch_from_commit(&mut self, sha: String) -> Result<(), Error> {
+    fn fetch_from_commit(&mut self, sha: &String) -> Result<(), Error> {
         let tags = match get_tags(&self.repo_id, &self.token)? {
             Some(tags) => tags,
             None => return Err(Error::new(ErrorKind::MissingGitTags, None)),

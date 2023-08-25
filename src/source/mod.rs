@@ -8,7 +8,7 @@ pub mod github;
 pub trait SourceActions {
     fn get_commit_messages(&self) -> Result<&Vec<String>, Error>;
     fn get_closest_tag(&self) -> Result<&String, Error>;
-    fn fetch_from_commit(&mut self, sha: String) -> Result<(), Error>;
+    fn fetch_from_commit(&mut self, sha: &String) -> Result<(), Error>;
 }
 
 #[enum_dispatch(SourceActions)]
