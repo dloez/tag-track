@@ -131,8 +131,8 @@ pub fn get_commit_messages(
     let output_result = Command::new("git")
         .arg("log")
         .arg("--format=%s")
-        .arg(from_commit)
-        .arg(until_commit)
+        .arg("--ancestry-path")
+        .arg(format!("{}..{}", from_commit, until_commit))
         .output();
 
     let output = match output_result {
@@ -160,14 +160,7 @@ pub fn get_commit_messages(
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let mut iterator = stdout.lines().map(|s| s.to_owned());
-    let mut commit_messages = Vec::new();
-    while let Some(line) = iterator.next() {
-        if iterator.clone().next().is_some() {
-            commit_messages.push(line);
-        }
-    }
-    Ok(commit_messages)
+    Ok(stdout.lines().map(|s| s.to_owned()).collect())
 }
 
 pub fn create_tag(tag: &String, tag_message: &String) -> Result<(), Error> {
