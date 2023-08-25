@@ -35,7 +35,7 @@ impl GithubSource {
 }
 
 impl SourceActions for GithubSource {
-    fn fetch_from_commit(&mut self, sha: &String) -> Result<(), Error> {
+    fn fetch_from_commit(&mut self, sha: &str) -> Result<(), Error> {
         let tags = match get_tags(&self.repo_id, &self.token)? {
             Some(tags) => tags,
             None => return Err(Error::new(ErrorKind::MissingGitTags, None)),
@@ -46,13 +46,13 @@ impl SourceActions for GithubSource {
         //     None => return Err(Error::new(ErrorKind::MissingGitCommits, None)),
         // };
 
-        let commit_iterator = CommitIterator::new(&self.repo_id, &self.token, &sha);
+        let commit_iterator = CommitIterator::new(&self.repo_id, &self.token, sha);
         for commit in commit_iterator {
             let commit = match commit {
                 Ok(commit) => commit,
                 Err(error) => return Err(error),
             };
-            let tag = find_tag_from_commit_sha(commit.sha, &tags);
+            let tag = find_tag_from_commit_sha(&commit.sha, &tags);
 
             if let Some(tag) = tag {
                 self.closest_tag = tag.clone().name;
@@ -119,7 +119,7 @@ struct CommitIterator<'a> {
     commits: Vec<GithubCommitDetails>,
     repo_id: &'a String,
     token: &'a Option<String>,
-    sha: &'a String,
+    sha: &'a str,
 
     max_elem: u64,
     current_elem: u64,
@@ -157,7 +157,7 @@ impl Iterator for CommitIterator<'_> {
 }
 
 impl<'a> CommitIterator<'a> {
-    fn new(repo_id: &'a String, token: &'a Option<std::string::String>, sha: &'a String) -> Self {
+    fn new(repo_id: &'a String, token: &'a Option<std::string::String>, sha: &'a str) -> Self {
         CommitIterator {
             page: 0,
             per_page: DEFAULT_PER_PAGE,
@@ -171,7 +171,7 @@ impl<'a> CommitIterator<'a> {
     }
 }
 
-fn get_tags(repo_id: &String, token: &Option<String>) -> Result<Option<Vec<GithubTag>>, Error> {
+fn get_tags(repo_id: &str, token: &Option<String>) -> Result<Option<Vec<GithubTag>>, Error> {
     let client = reqwest::blocking::Client::new();
     let mut client = client
         .get(format!(
@@ -220,7 +220,7 @@ fn get_tags(repo_id: &String, token: &Option<String>) -> Result<Option<Vec<Githu
 
 fn get_commits_from_commit_sha(
     repo_id: &String,
-    sha: &String,
+    sha: &str,
     token: &Option<String>,
     page: &u64,
     per_page: &u64,
@@ -268,7 +268,7 @@ fn get_commits_from_commit_sha(
     Ok(commits)
 }
 
-fn find_tag_from_commit_sha(sha: String, tags: &Vec<GithubTag>) -> Option<GithubTag> {
+fn find_tag_from_commit_sha(sha: &str, tags: &Vec<GithubTag>) -> Option<GithubTag> {
     for tag in tags {
         if tag.commit.sha == sha {
             return Some((*tag).clone());

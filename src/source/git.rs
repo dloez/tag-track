@@ -28,7 +28,7 @@ impl SourceActions for GitSource {
         Ok(&self.commit_messages)
     }
 
-    fn fetch_from_commit(&mut self, sha: &String) -> Result<(), Error> {
+    fn fetch_from_commit(&mut self, sha: &str) -> Result<(), Error> {
         self.closest_tag = match git::get_closest_tag() {
             Ok(tag) => tag,
             Err(error) => return Err(error),
@@ -39,7 +39,7 @@ impl SourceActions for GitSource {
             Err(error) => return Err(error),
         };
 
-        self.commit_messages = match git::get_commit_messages(&self.closest_tag_commit_sha, &sha) {
+        self.commit_messages = match git::get_commit_messages(&self.closest_tag_commit_sha, sha) {
             Ok(commit_messages) => commit_messages,
             Err(error) => return Err(error),
         };
