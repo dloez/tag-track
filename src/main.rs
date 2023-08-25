@@ -13,7 +13,7 @@ mod version;
 
 const MAJOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf)!:";
 const MINOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf):";
-const PATCH_REGEX_PATTERN: &str = r"^fix:";
+const PATCH_REGEX_PATTERN: &str = r"^(fix|style):";
 
 #[derive(Parser, Debug, Serialize, Clone)]
 #[command(author, version, about, long_about = None)]
