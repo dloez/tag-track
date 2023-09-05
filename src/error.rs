@@ -24,7 +24,7 @@ impl ErrorKind {
             NotGitWorkingTree => "the current directory does not seem to be a git working tree",
             SourceNotFetched => "call `fetch` method before using this property",
             GithubRestError => "error while calling GitHub REST API",
-            MissingGitTags => "ther are no tags in source",
+            MissingGitTags => "there are no tags in source",
             // MissingGitCommits => "there are no commits in source",
             MissingGitClosestTag => "cannot find closest tag",
             NotValidOutputFormat => "the specified output format is not valid",
