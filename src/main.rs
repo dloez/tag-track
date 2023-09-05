@@ -23,7 +23,7 @@ struct Args {
     create_tag: bool,
 
     // GitHUb repository identifier (owner/repo_name).
-    // If pressent, this will use GitHub as the source to calculate a version bump.
+    // If present, this will use GitHub as the source to calculate a version bump.
     #[arg(long)]
     github_repo: Option<String>,
 
@@ -33,7 +33,7 @@ struct Args {
 
     // All commits between the oldest closest tag and the one specified
     // by this SHA will be used to calculate the version bump. Useful when using
-    // a remote reposity with different git history as the local repository.
+    // a remote repository with different git history as the local repository.
     #[arg(long)]
     commit_sha: Option<String>,
 
