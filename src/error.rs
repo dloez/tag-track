@@ -1,20 +1,37 @@
+//! Module containing error utilities. The `error::Error` struct does also implement the `From` trait
+//! to convert other errors to allow the application to return our own errors in all functions.
+//!
+
 use std::{env::VarError, fmt};
 
+/// Describes what kind of errors the application can return.
 #[derive(Debug)]
 pub enum ErrorKind {
+    /// Unexpected error obtained while calling a command.
     GenericCommandFailed,
+    /// Git command cannot be invoked.
     MissingGit,
+    /// The application is being called outside a git working tree.
     NotGitWorkingTree,
+    /// The source function `fetch_from_commit` or equivalent has not been called,
+    /// which means that the source has not collected the required information and
+    /// cannot be queried.
     SourceNotFetched,
+    /// Error returned by the GitHub REST API.
     GithubRestError,
+    /// Can not find any tags.
     MissingGitTags,
-    // MissingGitCommits,
-    MissingGitClosestTag,
+    /// Can not find the git oldest closest tag.
+    MissingGitOldestClosestTag,
+    /// The user given output format is not valid.
     NotValidOutputFormat,
+    /// Unspecified found error. This error kind is also used for `From` implementation of
+    /// other errors.
     Other,
 }
 
 impl ErrorKind {
+    /// Create `&str` representation of the different error kinds.
     pub fn as_str(&self) -> &str {
         use ErrorKind::*;
 
@@ -25,8 +42,7 @@ impl ErrorKind {
             SourceNotFetched => "call `fetch` method before using this property",
             GithubRestError => "error while calling GitHub REST API",
             MissingGitTags => "there are no tags in source",
-            // MissingGitCommits => "there are no commits in source",
-            MissingGitClosestTag => "cannot find closest tag",
+            MissingGitOldestClosestTag => "cannot find closest tag",
             NotValidOutputFormat => "the specified output format is not valid",
             Other => "other error",
         }
@@ -39,13 +55,25 @@ impl fmt::Display for ErrorKind {
     }
 }
 
+/// Representation of an error.
 #[derive(Debug)]
 pub struct Error {
+    /// Kind of encapsulated error.
     pub kind: ErrorKind,
+    /// Error message or description for a better understanding. This `String` can be
+    /// empty in case the error does not required a message or description.
     message: String,
 }
 
 impl Error {
+    /// Create a new Error instance with the given kind and message.
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Encapsulated `error::ErrorKind`.
+    ///
+    /// * `message` - Error message or description.
+    ///
     pub fn new(kind: ErrorKind, message: Option<&str>) -> Self {
         let message = message.unwrap_or("");
         Self {

@@ -1,7 +1,27 @@
+//! Module containing git utilities to work with the system git installation and git history.
+//!
+//! To spawn shell commands it is being used the function `std::process::Command::new` so git
+//! must be installed and in the path.
+//!
+
 use std::process::Command;
 
 use crate::error::{Error, ErrorKind};
 
+/// Verifies the git installation and if the command is being spawned inside a git working tree.
+/// In case git is available and it is being called inside a git working tree, the function will return
+/// `Ok(())`.
+///
+/// # Errors
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::MissingGit` if the git command was not available.
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::GenericCommandFailed` if there was an unexpected error
+/// while calling a command.
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::NoGitWorkingTree` if git is being called outside a
+/// git working tree.
+///
 pub fn verify_git() -> Result<(), Error> {
     if let Err(error) = Command::new("git").arg("--version").output() {
         return Err(Error::new(ErrorKind::MissingGit, Some(&error.to_string())));
@@ -29,6 +49,16 @@ pub fn verify_git() -> Result<(), Error> {
     Ok(())
 }
 
+/// Returns the current commit SHA or an `error::Error` if there was an error while trying to get the commit SHA.
+///
+/// # Errors
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::GenericCommandFailed` if there was an unexpected error
+/// while calling a command.
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::Other` if the command called returned an unexpected error
+/// causing that the current commit SHA cannot be obtained.
+///
 pub fn get_current_commit_sha() -> Result<String, Error> {
     let output_result = Command::new("git").arg("rev-parse").arg("HEAD").output();
 
@@ -58,7 +88,28 @@ pub fn get_current_commit_sha() -> Result<String, Error> {
     Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
-pub fn get_closest_tag() -> Result<String, Error> {
+/// Returns the latest closest git tag name. This means that, from the current commit, it will get the oldest closest tag.
+///
+/// In the following tree, the tag 0.1.0 will be returned:
+/// ```
+///  tag 0.2.0
+///      |
+/// given commit
+///      |
+///   commit
+///      |
+///  tag 0.1.0
+/// ```
+///
+/// # Errors
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::GenericCommandFailed` if there was an unexpected error
+/// while calling a command.
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::Other` if the command called returned an unexpected error
+/// causing that the oldest closest tag cannot be obtained.
+///
+pub fn get_oldest_closest_tag() -> Result<String, Error> {
     let output_result = Command::new("git")
         .arg("describe")
         .arg("--abbrev=0")
@@ -91,6 +142,20 @@ pub fn get_closest_tag() -> Result<String, Error> {
     Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
+/// From a given tag name return its corresponding commit SHA.
+///
+/// # Arguments
+///
+/// * `tag` - Git tag name.
+///
+/// # Errors
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::GenericCommandFailed` if there was an unexpected error
+/// while calling a command.
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::Other` if the command called returned an unexpected error
+/// causing that the tag commit SHA cannot be obtained.
+///
 pub fn get_tag_commit_sha(tag: &str) -> Result<String, Error> {
     let output_result = Command::new("git")
         .arg("rev-list")
@@ -124,6 +189,25 @@ pub fn get_tag_commit_sha(tag: &str) -> Result<String, Error> {
     Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
+/// Return all commit messages between the given `from_commit` SHA and until the `until_commit` SHA where the oldest
+/// commit must be the `from_commit` commit.
+///
+/// # Arguments
+///
+/// * `from_commit` - commit SHA of the commit from where the messages should be obtained. The given commit message will
+/// not be included. This commit should be temporarily older than the commit given in the `until_commit` argument.
+///
+/// * `until_commit` - commit SHA of the commit until where the messages should be obtained. The given commit message
+/// will be included. This commit should be temporarily newer than the commit given in the `from_commit` argument.
+///
+/// # Errors
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::GenericCommandFailed` if there was an unexpected error
+/// while calling a command.
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::Other` if the command called returned an unexpected error
+/// causing that the tag commit SHA cannot be obtained.
+///
 pub fn get_commit_messages(from_commit: &str, until_commit: &str) -> Result<Vec<String>, Error> {
     let output_result = Command::new("git")
         .arg("log")
@@ -160,6 +244,22 @@ pub fn get_commit_messages(from_commit: &str, until_commit: &str) -> Result<Vec<
     Ok(stdout.lines().map(|s| s.to_owned()).collect())
 }
 
+/// Create the given annotated tag with the given message. Returns `Ok(())` if no errors were found.
+///
+/// # Arguments
+///
+/// * `tag` - Git tag name.
+///
+/// * `tag_message` - Git tag message.
+///
+/// # Errors
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::GenericCommandFailed` if there was an unexpected error
+/// while calling a command.
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::Other` if the command called returned an unexpected error
+/// causing that the git tag could not be created.
+///
 pub fn create_tag(tag: &str, tag_message: &str) -> Result<(), Error> {
     let output_result = Command::new("git")
         .arg("tag")

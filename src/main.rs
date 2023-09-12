@@ -11,50 +11,56 @@ mod git;
 mod source;
 mod version;
 
+/// Regex pattern used to detect commits messages that triggers a major version bump.
 const MAJOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf)!:";
+/// Regex pattern used to detect commits messages that triggers a minor version bump.
 const MINOR_REGEX_PATTERN: &str = r"^(feat|refactor|perf):";
+/// Regex pattern used to detect commits messages that triggers a patch version bump.
 const PATCH_REGEX_PATTERN: &str = r"^(fix|style):";
 
+/// Type that defines CLI arguments.
 #[derive(Parser, Debug, Serialize, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    // Create git annotated tag from populated version.
+    /// Create git annotated tag from populated version.
     #[arg(long, default_value = "false", default_missing_value = "true")]
     create_tag: bool,
 
-    // GitHUb repository identifier (owner/repo_name).
-    // If present, this will use GitHub as the source to calculate a version bump.
+    /// GitHUb repository identifier (owner/repo_name).
+    /// If present, this will use GitHub as the source to calculate a version bump.
     #[arg(long)]
     github_repo: Option<String>,
 
-    // Token to authenticate  GitHub REST API calls.
+    /// Token to authenticate  GitHub REST API calls.
     #[arg(long)]
     github_token: Option<String>,
 
-    // All commits between the oldest closest tag and the one specified
-    // by this SHA will be used to calculate the version bump. Useful when using
-    // a remote repository with different git history as the local repository.
+    /// All commits between the oldest closest tag and the one specified
+    /// by this SHA will be used to calculate the version bump. Useful when using
+    /// a remote repository with different git history as the local repository.
     #[arg(long)]
     commit_sha: Option<String>,
 
-    // Output format, possible values are: 'text', 'json'. Default value is 'text'.
+    /// Output format, possible values are: 'text', 'json'. Default value is 'text'.
     #[arg(long, default_value = "text", default_missing_value = "text")]
     output_format: String,
 }
 
+/// Type for storing the required data that needs to be printed in the terminal in different formats.
 #[derive(Serialize, Debug)]
-struct Output {
-    inputs: Args,
+struct Output<'a> {
+    inputs: &'a Args,
     created_tag: bool,
     old_version: String,
     new_version: String,
     error: String,
 }
 
-impl Output {
-    fn new(inputs: &Args) -> Self {
+impl<'a> Output<'a> {
+    /// Creates a new `Output` instance with the given `inputs`.
+    fn new(inputs: &'a Args) -> Self {
         Self {
-            inputs: inputs.clone(),
+            inputs,
             created_tag: false,
             old_version: "".to_owned(),
             new_version: "".to_owned(),
@@ -63,6 +69,7 @@ impl Output {
     }
 }
 
+/// Type for valid output formats.
 enum OutputFormat {
     Text,
     Json,
@@ -82,7 +89,7 @@ fn main() {
     };
 
     if let Err(error) = git::verify_git() {
-        return_error(output_format, error, &args);
+        print_error(error, &args, output_format);
         exit(1);
     }
 
@@ -91,7 +98,7 @@ fn main() {
         None => match git::get_current_commit_sha() {
             Ok(current_commit) => current_commit,
             Err(error) => {
-                return_error(output_format, error, &args);
+                print_error(error, &args, output_format);
                 exit(1);
             }
         },
@@ -106,15 +113,15 @@ fn main() {
     };
 
     if let Err(error) = source.fetch_from_commit(&current_commit_sha) {
-        return_error(output_format, error, &args);
+        print_error(error, &args, output_format);
         exit(1);
     };
 
     let source = source;
-    let closest_tag = match source.get_closest_tag() {
+    let closest_tag = match source.get_closest_oldest_tag() {
         Ok(tag) => tag,
         Err(error) => {
-            return_error(output_format, error, &args);
+            print_error(error, &args, output_format);
             exit(1);
         }
     };
@@ -122,7 +129,7 @@ fn main() {
     let mut version = match Version::parse(closest_tag) {
         Ok(version) => version,
         Err(error) => {
-            return_error(output_format, error::Error::from(error), &args);
+            print_error(error::Error::from(error), &args, output_format);
             exit(1);
         }
     };
@@ -130,7 +137,7 @@ fn main() {
     let commit_messages = match source.get_commit_messages() {
         Ok(commit_messages) => commit_messages,
         Err(error) => {
-            return_error(output_format, error, &args);
+            print_error(error, &args, output_format);
             exit(1);
         }
     };
@@ -214,7 +221,7 @@ fn main() {
     let result = git::create_tag(&version.to_string(), &tag_message);
     match result {
         Err(error) => {
-            return_error(output_format, error, &args);
+            print_error(error, &args, output_format);
             exit(1);
         }
         Ok(_) => {
@@ -233,7 +240,18 @@ fn main() {
     }
 }
 
-fn return_error(output_format: OutputFormat, error: error::Error, inputs: &Args) {
+/// Print the given error in the given output format.
+///
+/// # Arguments
+///
+/// * `error` - Error to be displayed.
+///
+/// * `inputs` - User inputted cli arguments.
+///
+/// * `output_format` - Output format that will be used for printing the result. The output
+/// will be prettified before being printed.
+///
+fn print_error(error: error::Error, inputs: &Args, output_format: OutputFormat) {
     match output_format {
         OutputFormat::Text => println!("{}", error),
         OutputFormat::Json => {
