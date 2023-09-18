@@ -88,7 +88,7 @@ pub fn get_current_commit_sha() -> Result<String, Error> {
     Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
-/// Returns the latest closest git tag name. This means that, from the current commit, it will get the oldest closest tag.
+/// Returns the latest closest git tag name from the given commit.
 ///
 /// In the following tree, the tag 0.1.0 will be returned:
 /// ```
@@ -101,6 +101,10 @@ pub fn get_current_commit_sha() -> Result<String, Error> {
 ///  tag 0.1.0
 /// ```
 ///
+/// # Arguments
+///
+/// * `from_commit` - From which commit the oldest closest tag will be optained. If `None` is given, it will default to `HEAD`.
+///
 /// # Errors
 ///
 /// Returns `error::Error` with a kind of `error::ErrorKind::GenericCommandFailed` if there was an unexpected error
@@ -109,12 +113,17 @@ pub fn get_current_commit_sha() -> Result<String, Error> {
 /// Returns `error::Error` with a kind of `error::ErrorKind::Other` if the command called returned an unexpected error
 /// causing that the oldest closest tag cannot be obtained.
 ///
-pub fn get_oldest_closest_tag() -> Result<String, Error> {
-    let output_result = Command::new("git")
-        .arg("describe")
-        .arg("--abbrev=0")
-        .arg("--tags")
-        .output();
+pub fn get_oldest_closest_tag(from_commit: Option<&str>) -> Result<String, Error> {
+    let mut binding = Command::new("git");
+    let command = binding.arg("describe").arg("--abbrev=0").arg("--tags");
+
+    let output_result = match from_commit {
+        Some(from_commit) => {
+            command.arg(from_commit);
+            command.output()
+        }
+        None => command.output(),
+    };
 
     let output = match output_result {
         Ok(output) => output,
