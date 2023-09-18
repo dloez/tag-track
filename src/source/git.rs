@@ -68,7 +68,7 @@ impl SourceActions for GitSource {
     /// causing that the tag commit SHA cannot be obtained.
     ///
     fn fetch_from_commit(&mut self, sha: &str) -> Result<(), Error> {
-        self.oldest_closest_tag = match git::get_oldest_closest_tag() {
+        self.oldest_closest_tag = match git::get_oldest_closest_tag(Some(sha)) {
             Ok(tag) => tag,
             Err(error) => return Err(error),
         };
