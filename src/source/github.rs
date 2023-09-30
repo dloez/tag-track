@@ -324,7 +324,7 @@ fn get_all_tags(repo_id: &String, token: &Option<String>) -> Vec<GithubTag> {
         tags.extend(t);
         page += 1;
     }
-    return tags;
+    tags
 }
 
 /// Obtains commits from the given `sha` using the GitHub REST API. If `token` is given, the requests will be authorized.
