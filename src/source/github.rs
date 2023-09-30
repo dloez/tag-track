@@ -84,10 +84,10 @@ impl SourceActions for GithubSource {
     /// could not be found.
     ///
     fn fetch_from_commit(&mut self, sha: &str) -> Result<(), Error> {
-        let tags = match get_tags(&self.repo_id, &self.token)? {
-            Some(tags) => tags,
-            None => return Err(Error::new(ErrorKind::MissingGitTags, None)),
-        };
+        let tags = get_all_tags(&self.repo_id, &self.token);
+        if tags.is_empty() {
+            return Err(Error::new(ErrorKind::MissingGitTags, None));
+        }
 
         let commit_iterator = CommitIterator::new(&self.repo_id, &self.token, sha);
         for commit in commit_iterator {
@@ -253,17 +253,26 @@ impl<'a> CommitIterator<'a> {
 /// * `token` - GitHub REST API authentication token. If it is `None`, requests will not be authenticated, if it has
 /// a value, requests will be authenticated.
 ///
+/// * `page` - GitHub REST API requests page number. This number must not exceed `u64` limits.
+///
+/// * `per_page` - GitHub REST API elements per request page. Limit is `100`.
+///
 /// # Errors
 ///
 /// Returns `error::Error` with a kind of `error::ErrorKind::GitHubRestError` if there was an unexpected response
 /// from the GitHub REST API.
 ///
-fn get_tags(repo_id: &str, token: &Option<String>) -> Result<Option<Vec<GithubTag>>, Error> {
+fn get_tags(
+    repo_id: &String,
+    token: &Option<String>,
+    page: &u64,
+    per_page: &u64,
+) -> Result<Vec<GithubTag>, Error> {
     let client = reqwest::blocking::Client::new();
     let mut client = client
         .get(format!(
-            "{}/{}{}",
-            GITHUB_BASE_URI, repo_id, GITHUB_TAGS_URI
+            "{}/{}{}?page={}&per_page={}",
+            GITHUB_BASE_URI, repo_id, GITHUB_TAGS_URI, page, per_page
         ))
         .header(reqwest::header::USER_AGENT, USER_AGENT);
 
@@ -299,10 +308,23 @@ fn get_tags(repo_id: &str, token: &Option<String>) -> Result<Option<Vec<GithubTa
         },
     };
 
-    match tags.len() {
-        0 => Ok(None),
-        _ => Ok(Some(tags)),
+    Ok(tags)
+}
+
+fn get_all_tags(repo_id: &String, token: &Option<String>) -> Vec<GithubTag> {
+    let mut page: u64 = 0;
+    let mut tags: Vec<GithubTag> = vec![];
+
+    while let Ok(t) = get_tags(repo_id, token, &page, &DEFAULT_PER_PAGE) {
+        if t.is_empty() {
+            break;
+        }
+
+        tags.reserve(t.len());
+        tags.extend(t);
+        page += 1;
     }
+    return tags;
 }
 
 /// Obtains commits from the given `sha` using the GitHub REST API. If `token` is given, the requests will be authorized.
