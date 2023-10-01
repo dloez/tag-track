@@ -4,6 +4,9 @@ on:
     branches:
       - main
   workflow_call:
+  push:
+    branches:
+      - milestone-*
 defaults:
   run:
     shell: bash

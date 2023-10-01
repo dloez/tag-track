@@ -25,6 +25,10 @@ pub enum ErrorKind {
     MissingGitOldestClosestTag,
     /// The user given output format is not valid.
     NotValidOutputFormat,
+    /// The tag pattern does not match the default/given pattern.
+    InvalidTagPattern,
+    /// The tag does not contain a version.
+    NoVersionInTag,
     /// Unspecified found error. This error kind is also used for `From` implementation of
     /// other errors.
     Other,
@@ -44,6 +48,8 @@ impl ErrorKind {
             MissingGitTags => "there are no tags in source",
             MissingGitOldestClosestTag => "cannot find closest tag",
             NotValidOutputFormat => "the specified output format is not valid",
+            InvalidTagPattern => "the tag pattern does not match the default/given pattern",
+            NoVersionInTag => "the tag does not contain a version",
             Other => "other error",
         }
     }
@@ -104,6 +110,33 @@ impl From<VarError> for Error {
 
 impl From<semver::Error> for Error {
     fn from(error: semver::Error) -> Self {
+        Self {
+            kind: ErrorKind::Other,
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Self {
+        Self {
+            kind: ErrorKind::Other,
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<serde_yaml::Error> for Error {
+    fn from(error: serde_yaml::Error) -> Self {
+        Self {
+            kind: ErrorKind::Other,
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<regex::Error> for Error {
+    fn from(error: regex::Error) -> Self {
         Self {
             kind: ErrorKind::Other,
             message: error.to_string(),
