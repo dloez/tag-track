@@ -1,4 +1,6 @@
 use clap::Parser;
+use config::{is_config_available, parse_config_file, Config};
+use error::{Error, ErrorKind};
 use regex::Regex;
 use semver::Version;
 use serde::Serialize;
@@ -6,6 +8,7 @@ use serde_json::to_string_pretty;
 use source::SourceActions;
 use std::{collections::HashMap, process::exit};
 
+mod config;
 mod error;
 mod git;
 mod source;
@@ -82,14 +85,25 @@ fn main() {
         "text" => OutputFormat::Text,
         "json" => OutputFormat::Json,
         value => {
-            let error = error::Error::new(error::ErrorKind::NotValidOutputFormat, Some(value));
+            let error = Error::new(ErrorKind::NotValidOutputFormat, Some(value));
             println!("{}", error);
             exit(1);
         }
     };
 
+    let config = match is_config_available() {
+        Some(config_file_path) => match parse_config_file(config_file_path) {
+            Ok(config) => config,
+            Err(error) => {
+                print_error(error, &args, &output_format);
+                exit(1);
+            }
+        },
+        None => Config::new(),
+    };
+
     if let Err(error) = git::verify_git() {
-        print_error(error, &args, output_format);
+        print_error(error, &args, &output_format);
         exit(1);
     }
 
@@ -98,12 +112,13 @@ fn main() {
         None => match git::get_current_commit_sha() {
             Ok(current_commit) => current_commit,
             Err(error) => {
-                print_error(error, &args, output_format);
+                print_error(error, &args, &output_format);
                 exit(1);
             }
         },
     };
 
+    // TODO: This will not work when we have more sources
     let mut source: source::SourceKind = match args.github_repo.clone() {
         Some(repo) => source::SourceKind::Github(source::github::GithubSource::new(
             repo,
@@ -113,7 +128,7 @@ fn main() {
     };
 
     if let Err(error) = source.fetch_from_commit(&current_commit_sha) {
-        print_error(error, &args, output_format);
+        print_error(error, &args, &output_format);
         exit(1);
     };
 
@@ -121,15 +136,14 @@ fn main() {
     let closest_tag = match source.get_closest_oldest_tag() {
         Ok(tag) => tag,
         Err(error) => {
-            print_error(error, &args, output_format);
+            print_error(error, &args, &output_format);
             exit(1);
         }
     };
-
-    let mut version = match Version::parse(closest_tag) {
+    let mut version = match parse_tag(config.tag_pattern, closest_tag) {
         Ok(version) => version,
         Err(error) => {
-            print_error(error::Error::from(error), &args, output_format);
+            print_error(error, &args, &output_format);
             exit(1);
         }
     };
@@ -137,7 +151,7 @@ fn main() {
     let commit_messages = match source.get_commit_messages() {
         Ok(commit_messages) => commit_messages,
         Err(error) => {
-            print_error(error, &args, output_format);
+            print_error(error, &args, &output_format);
             exit(1);
         }
     };
@@ -221,7 +235,7 @@ fn main() {
     let result = git::create_tag(&version.to_string(), &tag_message);
     match result {
         Err(error) => {
-            print_error(error, &args, output_format);
+            print_error(error, &args, &output_format);
             exit(1);
         }
         Ok(_) => {
@@ -251,7 +265,7 @@ fn main() {
 /// * `output_format` - Output format that will be used for printing the result. The output
 /// will be prettified before being printed.
 ///
-fn print_error(error: error::Error, inputs: &Args, output_format: OutputFormat) {
+fn print_error(error: error::Error, inputs: &Args, output_format: &OutputFormat) {
     match output_format {
         OutputFormat::Text => println!("{}", error),
         OutputFormat::Json => {
@@ -263,5 +277,71 @@ fn print_error(error: error::Error, inputs: &Args, output_format: OutputFormat) 
                 println!("could not serialize {:?}", output);
             }
         }
+    }
+}
+
+/// Returns the version found in the given tag that matches the given pattern.
+///
+/// # Arguments
+///
+/// * `tag_pattern` - Regex pattern that will be used against the tag.
+///
+/// * `tag` - Tag that will be parsed.
+///
+/// # Errors
+///
+/// Returns `error::Error` with the type of `error::ErrorKind::InvalidTagPattern` if the given Regex pattern is not a valid.
+///
+/// Returns `error::Error` with the type of `error::ErrorKind::NoVersionInTag` if the given tag does not contain a version.
+///
+fn parse_tag(tag_pattern: Option<String>, tag: &String) -> Result<Version, Error> {
+    let not_parsed_version = match tag_pattern {
+        None => tag.to_owned(),
+        Some(tag_pattern) => {
+            let re = match Regex::new(tag_pattern.as_str()) {
+                Ok(re) => re,
+                Err(error) => {
+                    return Err(Error::new(
+                        ErrorKind::InvalidTagPattern,
+                        Some(error.to_string().as_str()),
+                    ))
+                }
+            };
+            let captures = match re.captures(tag) {
+                Some(captures) => captures,
+                None => {
+                    return Err(Error::new(
+                        ErrorKind::NoVersionInTag,
+                        Some(
+                            format!(
+                                "no version found in tag {} with pattern {}",
+                                tag, tag_pattern
+                            )
+                            .as_str(),
+                        ),
+                    ))
+                }
+            };
+            match captures.get(1) {
+                Some(version) => version.as_str().to_owned(),
+                None => {
+                    return Err(Error::new(
+                        ErrorKind::NoVersionInTag,
+                        Some(
+                            format!(
+                                "no version found in tag {} with pattern {}",
+                                tag, tag_pattern
+                            )
+                            .as_str(),
+                        ),
+                    ))
+                }
+            }
+        }
+    };
+
+    match Version::parse(not_parsed_version.as_str()) {
+        Ok(version) => Ok(version),
+        Err(error) => Err(Error::from(error)),
     }
 }

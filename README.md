@@ -22,15 +22,20 @@ This will use the latest closest tag and the commit messages between that tag an
 - `--commit-sha`: Commits between this SHA and the closest tag will be used to calculate the version bump. Useful in combination of remote sources such as GitHub REST API or if you do not want to use the current commit to calculate the version bump.
 - `--output-format`: Format used to print the output. Useful for integrating Tag track with automatic systems. Possible values are `text` and `json`. Defaults to `text`.
 
+### Configuration
+Additionally, you can create a `track.yaml` or `track.yml` file to configure:
+
+- Tag format. Use the `tag_pattern` to specify a Regex pattern to get the version from the tag name. For example, to get the version from a tag named `v1.0.0` use the pattern `v(.*)`. If not `tag_pettern` is specified, whole tag name will be used as version.
+
 ## Project stability and current status
 Currently, Tag track has a high work-in-progress status, thus we are marking releases as pre-releases. There will be API changes and non-backward compatibility changes during this phase. Here is a list of features and improvements that we want to make before the release of Tag track `1.0.0`:
 
 - [ ] Custom GitHub actions with improved API to use inside GitHub actions jobs.
 - [ ] More remote sources such as GitLab, Gitea, etc.
 - [ ] Custom rules to calculate version bumps based on conventional commit messages.
-- [ ] Support multiple tag formats. Currently only tags that follow the [semantic versioning 2.0](https://semver.org/) can be parsed.
+- [x] Support multiple tag formats. Currently only tags that follow the [semantic versioning 2.0](https://semver.org/) can be parsed.
 - [ ] Support conventional commits message scopes and use the scopes to differentiate between different applications with different versions. This is our attempt to support monorepos.
 - [ ] Improved usage of the git history when using remote sources. Currently if the argument `--create-tag` is not used with the use of a remote source like GitHub REST API, the git history is still required, which does not have sense.
 - [ ] Improved error handling and user input control.
 
-After the release of the version `1.0.0` we aim to not introduce non-backward compatibility changes.
+After the release of the version `1.0.0` we aim to not introduce any non-backward compatibility changes.
