@@ -25,7 +25,7 @@ This will use the latest closest tag and the commit messages between that tag an
 ### Configuration
 Additionally, you can create a `track.yaml` or `track.yml` file to configure:
 
-- Tag format. Use the `tag_pattern` to specify a Regex pattern to get the version from the tag name. For example, to get the version from a tag named `v1.0.0` use the pattern `v(.*)`. If not `tag_pettern` is specified, whole tag name will be used as version.
+- Tag format. Use the `tag_pattern` to specify a Regex pattern to get the version from the tag name. For example, to get the version from a tag named `v1.0.0` use the pattern `v(.*)`. If not `tag_pattern` is specified, whole tag name will be used as version.
 
 ## Project stability and current status
 Currently, Tag track has a high work-in-progress status, thus we are marking releases as pre-releases. There will be API changes and non-backward compatibility changes during this phase. Here is a list of features and improvements that we want to make before the release of Tag track `1.0.0`:
