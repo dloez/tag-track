@@ -1,8 +1,0 @@
-# bump_rules:
-#   - bump: patch
-#     types: [fix, style]
-#   - bump: minor
-#     types: [feat, refactor, perf]
-#   - bump: major 
-#     types: [feat, refactor, perf]
-#     str_in_type: '!'

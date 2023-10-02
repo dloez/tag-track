@@ -61,23 +61,108 @@ pub fn increment_major(version: &mut Version) {
     version.build = BuildMetadata::EMPTY;
 }
 
-pub fn calculate_bump(mut version: &Version, rules: &Vec<BumpRule>, commits: &Vec<String>) {
-    for commit in commits {
-        // for rule in rules {}
-        println!("{:?}", extract_commit_sections(commit));
+/// Increments the given version based on the given rules. The function returns the increment kind that was used.
+/// If no increment was done, the function returns `None`.
+///
+/// # Arguments
+///
+/// * `version` - Version that will be modified.
+///
+/// * `rules` - Rules that will be used to determine the increment kind.
+///
+/// * `commits` - Commits that will be used to determine the increment kind.
+///
+pub fn bump_version(
+    version: &mut Version,
+    rules: &Vec<BumpRule>,
+    commits: &Vec<String>,
+) -> Option<IncrementKind> {
+    let mut increment_kind: Option<IncrementKind> = None;
+    'commits: for commit in commits {
+        let commit_sections = extract_commit_sections(commit);
+        for rule in rules {
+            let mut bump = false;
+
+            // Check commit type
+            if let Some(types) = &rule.types {
+                bump = false;
+                if types.contains(&commit_sections.commit_type) {
+                    bump = true;
+                }
+            }
+
+            // Check commit scope
+            if let Some(scopes) = &rule.scopes {
+                bump = false;
+                if scopes.contains(&commit_sections.scope) {
+                    bump = true;
+                }
+            }
+
+            // Check additional chars in type
+            if let Some(additional_chars) = &rule.str_in_type {
+                bump = false;
+                if commit_sections
+                    .commit_type_additional_chars
+                    .contains(additional_chars)
+                {
+                    bump = true;
+                }
+            }
+
+            if bump {
+                increment_kind = match &rule.bump {
+                    IncrementKind::Major => Some(IncrementKind::Major),
+                    IncrementKind::Minor => Some(IncrementKind::Minor),
+                    IncrementKind::Patch => {
+                        if increment_kind.is_some() {
+                            continue;
+                        }
+                        Some(IncrementKind::Minor)
+                    }
+                };
+
+                if let Some(IncrementKind::Major) = increment_kind {
+                    break 'commits;
+                }
+            }
+        }
     }
+
+    match increment_kind {
+        Some(IncrementKind::Major) => increment_major(version),
+        Some(IncrementKind::Minor) => increment_minor(version),
+        Some(IncrementKind::Patch) => increment_patch(version),
+        None => {}
+    };
+
+    increment_kind
 }
 
+/// Type to represent the sections of a conventional commit message.
 #[derive(Debug)]
-
 struct CommitSections {
+    /// The type of the commit.
     commit_type: String,
+
+    /// The scope of the commit.
     scope: String,
+
+    /// Additional characters in the commit type. For example, in the commit `feat!: Add new feature`, the char `!`
+    /// would be in thjis field.
     commit_type_additional_chars: String,
-    message: String,
+
+    /// The message of the commit.
+    _message: String,
 }
 
-fn extract_commit_sections(commit: &String) -> CommitSections {
+/// Extracts the commit sections from a commit message.
+///
+/// # Arguments
+///
+/// * `commit` - Commit message that will be parsed.
+///
+fn extract_commit_sections(commit: &str) -> CommitSections {
     let mut commit_type = String::new();
     let mut scope = String::new();
     let mut commit_type_additional_chars = String::new();
@@ -86,35 +171,48 @@ fn extract_commit_sections(commit: &String) -> CommitSections {
     let mut commit_type_done = false;
     let mut scope_done = false;
     let mut commit_type_additional_chars_done = false;
+    let mut scope_found = false;
 
     for c in commit.chars() {
         if !commit_type_done {
-            if c == '(' {
-                commit_type_done = true;
-            } else {
-                commit_type.push(c);
+            match c {
+                '(' => {
+                    scope_found = true;
+                    commit_type_done = true;
+                }
+                ':' => {
+                    commit_type_done = true;
+                    scope_done = true;
+                    commit_type_additional_chars_done = true;
+                }
+                _ => commit_type.push(c),
             }
-        } else if !scope_done {
-            if c == ')' {
-                scope_done = true;
-            } else {
-                scope.push(c);
-            }
-        } else if !commit_type_additional_chars_done {
-            if c == ':' {
-                commit_type_additional_chars_done = true;
-            } else {
-                commit_type_additional_chars.push(c);
-            }
-        } else {
-            message.push(c);
+            continue;
         }
+
+        if !scope_done && scope_found {
+            match c {
+                ')' => scope_done = true,
+                _ => scope.push(c),
+            }
+            continue;
+        }
+
+        if !commit_type_additional_chars_done {
+            match c {
+                ':' => commit_type_additional_chars_done = true,
+                _ => commit_type_additional_chars.push(c),
+            }
+            continue;
+        }
+
+        message.push(c);
     }
 
     CommitSections {
         commit_type: commit_type.trim().to_string(),
         scope: scope.trim().to_string(),
         commit_type_additional_chars: commit_type_additional_chars.trim().to_string(),
-        message: message.trim().to_string(),
+        _message: message.trim().to_string(),
     }
 }
