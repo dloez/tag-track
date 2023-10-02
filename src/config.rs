@@ -6,24 +6,103 @@
 //!
 
 use crate::error::Error;
+use crate::version::IncrementKind;
 use serde::Deserialize;
 use std::{
     fs::{self, File},
     io::Read,
     path::PathBuf,
+    vec,
 };
 
-/// The `Config` struct represents the structure of the configuration file.
+const DEFAULT_TAG_PATTERN: &str = r".+";
+
+fn get_default_bump_rules() -> Vec<BumpRule> {
+    vec![
+        BumpRule {
+            bump: IncrementKind::Patch,
+            types: Some(vec![String::from("fix"), String::from("style")]),
+            str_in_type: None,
+        },
+        BumpRule {
+            bump: IncrementKind::Minor,
+            types: Some(vec![
+                String::from("feat"),
+                String::from("refactor"),
+                String::from("perf"),
+            ]),
+            str_in_type: None,
+        },
+        BumpRule {
+            bump: IncrementKind::Major,
+            types: Some(vec![
+                String::from("feat"),
+                String::from("refactor"),
+                String::from("perf"),
+            ]),
+            str_in_type: Some(String::from("!")),
+        },
+    ]
+}
+
+/// Type used to parse the configuration file.
 #[derive(Debug, Deserialize)]
-pub struct Config {
+pub struct ParsedConfig {
     /// The tag pattern used to extract the version number from Git tags.
     pub tag_pattern: Option<String>,
+
+    /// Rules for bumping the version number.
+    pub bump_rules: Option<Vec<BumpRule>>,
+}
+
+/// Type to represent the rules for bumping the version number.
+#[derive(Debug, Deserialize)]
+pub struct BumpRule {
+    /// Which version field should be bumped if the rule triggers.
+    bump: IncrementKind,
+
+    /// Which commit types trigger the rule.
+    types: Option<Vec<String>>,
+
+    /// Which string inside the commit type triggers the rule.
+    str_in_type: Option<String>,
+}
+
+/// Type used to add default fields to the missing configuration field fields.
+#[derive(Debug)]
+pub struct Config {
+    /// The tag pattern used to extract the version number from Git tags.
+    pub tag_pattern: String,
+
+    /// Rules for bumping the version number.
+    pub bump_rules: Vec<BumpRule>,
+}
+
+impl From<ParsedConfig> for Config {
+    fn from(parsed_config: ParsedConfig) -> Self {
+        let tag_pattern = match parsed_config.tag_pattern {
+            Some(tag_pattern) => tag_pattern,
+            None => DEFAULT_TAG_PATTERN.to_owned(),
+        };
+
+        let bump_rules: Vec<BumpRule> = match parsed_config.bump_rules {
+            Some(bump_rules) => bump_rules,
+            None => Vec::new(),
+        };
+
+        Self {
+            tag_pattern: tag_pattern,
+            bump_rules: bump_rules,
+        }
+    }
 }
 
 impl Config {
-    /// Creates a new `Config` object with default values.
-    pub fn new() -> Self {
-        Self { tag_pattern: None }
+    pub fn new() -> Config {
+        Self {
+            tag_pattern: DEFAULT_TAG_PATTERN.to_owned(),
+            bump_rules: get_default_bump_rules(),
+        }
     }
 }
 
@@ -49,7 +128,6 @@ pub fn is_config_available() -> Option<PathBuf> {
             }
         }
     }
-
     None
 }
 
@@ -65,6 +143,6 @@ pub fn is_config_available() -> Option<PathBuf> {
 ///
 pub fn parse_config_file(file_path: PathBuf) -> Result<Config, Error> {
     let contents = read_file(&file_path)?;
-    let config: Config = serde_yaml::from_str(&contents)?;
-    Ok(config)
+    let parsed_config: ParsedConfig = serde_yaml::from_str(&contents)?;
+    Ok(Config::from(parsed_config))
 }
