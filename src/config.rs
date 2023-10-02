@@ -22,6 +22,7 @@ fn get_default_bump_rules() -> Vec<BumpRule> {
         BumpRule {
             bump: IncrementKind::Patch,
             types: Some(vec![String::from("fix"), String::from("style")]),
+            scopes: None,
             str_in_type: None,
         },
         BumpRule {
@@ -31,6 +32,7 @@ fn get_default_bump_rules() -> Vec<BumpRule> {
                 String::from("refactor"),
                 String::from("perf"),
             ]),
+            scopes: None,
             str_in_type: None,
         },
         BumpRule {
@@ -40,6 +42,7 @@ fn get_default_bump_rules() -> Vec<BumpRule> {
                 String::from("refactor"),
                 String::from("perf"),
             ]),
+            scopes: None,
             str_in_type: Some(String::from("!")),
         },
     ]
@@ -59,13 +62,16 @@ pub struct ParsedConfig {
 #[derive(Debug, Deserialize)]
 pub struct BumpRule {
     /// Which version field should be bumped if the rule triggers.
-    bump: IncrementKind,
+    pub bump: IncrementKind,
 
     /// Which commit types trigger the rule.
-    types: Option<Vec<String>>,
+    pub types: Option<Vec<String>>,
+
+    /// Which scopes trigger the rule.
+    pub scopes: Option<Vec<String>>,
 
     /// Which string inside the commit type triggers the rule.
-    str_in_type: Option<String>,
+    pub str_in_type: Option<String>,
 }
 
 /// Type used to add default fields to the missing configuration field fields.
@@ -87,12 +93,12 @@ impl From<ParsedConfig> for Config {
 
         let bump_rules: Vec<BumpRule> = match parsed_config.bump_rules {
             Some(bump_rules) => bump_rules,
-            None => Vec::new(),
+            None => get_default_bump_rules(),
         };
 
         Self {
-            tag_pattern: tag_pattern,
-            bump_rules: bump_rules,
+            tag_pattern,
+            bump_rules,
         }
     }
 }
