@@ -7,6 +7,7 @@ use serde::Serialize;
 use serde_json::to_string_pretty;
 use source::SourceActions;
 use std::{collections::HashMap, process::exit};
+use version::calculate_bump;
 
 mod config;
 mod error;
@@ -156,102 +157,104 @@ fn main() {
         }
     };
 
-    let patterns: HashMap<version::IncrementKind, &'static str> = HashMap::from([
-        (version::IncrementKind::Major, MAJOR_REGEX_PATTERN),
-        (version::IncrementKind::Minor, MINOR_REGEX_PATTERN),
-        (version::IncrementKind::Patch, PATCH_REGEX_PATTERN),
-    ]);
+    // let patterns: HashMap<version::IncrementKind, &'static str> = HashMap::from([
+    //     (version::IncrementKind::Major, MAJOR_REGEX_PATTERN),
+    //     (version::IncrementKind::Minor, MINOR_REGEX_PATTERN),
+    //     (version::IncrementKind::Patch, PATCH_REGEX_PATTERN),
+    // ]);
 
-    let mut increment_kind: Option<&version::IncrementKind> = None;
-    for commit_message in commit_messages {
-        for (kind, pattern) in &patterns {
-            let re = Regex::new(pattern).unwrap();
-            if re.is_match(commit_message.as_str()) {
-                match kind {
-                    version::IncrementKind::Major => {
-                        increment_kind = Some(kind);
-                        break;
-                    }
-                    version::IncrementKind::Minor => increment_kind = Some(kind),
-                    version::IncrementKind::Patch => {
-                        if increment_kind.is_some() {
-                            continue;
-                        }
-                        increment_kind = Some(&version::IncrementKind::Minor)
-                    }
-                }
-            }
-        }
-    }
-    let increment_kind = increment_kind;
+    // let mut increment_kind: Option<&version::IncrementKind> = None;
+    // for commit_message in commit_messages {
+    //     for (kind, pattern) in &patterns {
+    //         let re = Regex::new(pattern).unwrap();
+    //         if re.is_match(commit_message.as_str()) {
+    //             match kind {
+    //                 version::IncrementKind::Major => {
+    //                     increment_kind = Some(kind);
+    //                     break;
+    //                 }
+    //                 version::IncrementKind::Minor => increment_kind = Some(kind),
+    //                 version::IncrementKind::Patch => {
+    //                     if increment_kind.is_some() {
+    //                         continue;
+    //                     }
+    //                     increment_kind = Some(&version::IncrementKind::Minor)
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    // let increment_kind = increment_kind;
 
-    if increment_kind.is_none() {
-        match output_format {
-            OutputFormat::Text => println!("version bump not required"),
-            OutputFormat::Json => {
-                let mut output = Output::new(&args);
-                output.old_version = version.to_string();
-                output.new_version = version.to_string();
-                if let Ok(json_str) = to_string_pretty(&output) {
-                    println!("{}", json_str);
-                } else {
-                    println!("could not serialize {:?}", output);
-                }
-            }
-        }
-        exit(0);
-    }
+    // if increment_kind.is_none() {
+    //     match output_format {
+    //         OutputFormat::Text => println!("version bump not required"),
+    //         OutputFormat::Json => {
+    //             let mut output = Output::new(&args);
+    //             output.old_version = version.to_string();
+    //             output.new_version = version.to_string();
+    //             if let Ok(json_str) = to_string_pretty(&output) {
+    //                 println!("{}", json_str);
+    //             } else {
+    //                 println!("could not serialize {:?}", output);
+    //             }
+    //         }
+    //     }
+    //     exit(0);
+    // }
 
-    let mut output = Output::new(&args);
-    output.old_version = version.to_string();
+    calculate_bump(&version, &config.bump_rules, commit_messages);
+    exit(1);
 
-    let kind = increment_kind.unwrap();
-    match kind {
-        version::IncrementKind::Major => version::increment_major(&mut version),
-        version::IncrementKind::Minor => version::increment_minor(&mut version),
-        version::IncrementKind::Patch => version::increment_patch(&mut version),
-    }
-    output.new_version = version.to_string();
+    // let mut output = Output::new(&args);
+    // output.old_version = version.to_string();
+    // let kind = increment_kind.unwrap();
+    // match kind {
+    //     version::IncrementKind::Major => version::increment_major(&mut version),
+    //     version::IncrementKind::Minor => version::increment_minor(&mut version),
+    //     version::IncrementKind::Patch => version::increment_patch(&mut version),
+    // }
+    // output.new_version = version.to_string();
 
-    if let OutputFormat::Text = output_format {
-        println!(
-            "version change: {} -> {}",
-            output.old_version, output.new_version
-        )
-    }
+    // if let OutputFormat::Text = output_format {
+    //     println!(
+    //         "version change: {} -> {}",
+    //         output.old_version, output.new_version
+    //     )
+    // }
 
-    if !args.create_tag {
-        if let OutputFormat::Json = output_format {
-            if let Ok(json_str) = to_string_pretty(&output) {
-                println!("{}", json_str);
-            } else {
-                println!("could not serialize {:?}", output);
-            }
-        }
-        exit(0);
-    }
+    // if !args.create_tag {
+    //     if let OutputFormat::Json = output_format {
+    //         if let Ok(json_str) = to_string_pretty(&output) {
+    //             println!("{}", json_str);
+    //         } else {
+    //             println!("could not serialize {:?}", output);
+    //         }
+    //     }
+    //     exit(0);
+    // }
 
-    let tag_message = format!("Version {}", version);
-    let result = git::create_tag(&version.to_string(), &tag_message);
-    match result {
-        Err(error) => {
-            print_error(error, &args, &output_format);
-            exit(1);
-        }
-        Ok(_) => {
-            output.created_tag = true;
-            match output_format {
-                OutputFormat::Text => println!("tag '{}' created!", version),
-                OutputFormat::Json => {
-                    if let Ok(json_str) = to_string_pretty(&output) {
-                        println!("{}", json_str);
-                    } else {
-                        println!("could not serialize {:?}", output);
-                    }
-                }
-            }
-        }
-    }
+    // let tag_message = format!("Version {}", version);
+    // let result = git::create_tag(&version.to_string(), &tag_message);
+    // match result {
+    //     Err(error) => {
+    //         print_error(error, &args, &output_format);
+    //         exit(1);
+    //     }
+    //     Ok(_) => {
+    //         output.created_tag = true;
+    //         match output_format {
+    //             OutputFormat::Text => println!("tag '{}' created!", version),
+    //             OutputFormat::Json => {
+    //                 if let Ok(json_str) = to_string_pretty(&output) {
+    //                     println!("{}", json_str);
+    //                 } else {
+    //                     println!("could not serialize {:?}", output);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 /// Print the given error in the given output format.
@@ -294,53 +297,48 @@ fn print_error(error: error::Error, inputs: &Args, output_format: &OutputFormat)
 ///
 /// Returns `error::Error` with the type of `error::ErrorKind::NoVersionInTag` if the given tag does not contain a version.
 ///
-fn parse_tag(tag_pattern: Option<String>, tag: &String) -> Result<Version, Error> {
-    let not_parsed_version = match tag_pattern {
-        None => tag.to_owned(),
-        Some(tag_pattern) => {
-            let re = match Regex::new(tag_pattern.as_str()) {
-                Ok(re) => re,
-                Err(error) => {
-                    return Err(Error::new(
-                        ErrorKind::InvalidTagPattern,
-                        Some(error.to_string().as_str()),
-                    ))
-                }
-            };
-            let captures = match re.captures(tag) {
-                Some(captures) => captures,
-                None => {
-                    return Err(Error::new(
-                        ErrorKind::NoVersionInTag,
-                        Some(
-                            format!(
-                                "no version found in tag {} with pattern {}",
-                                tag, tag_pattern
-                            )
-                            .as_str(),
-                        ),
-                    ))
-                }
-            };
-            match captures.get(1) {
-                Some(version) => version.as_str().to_owned(),
-                None => {
-                    return Err(Error::new(
-                        ErrorKind::NoVersionInTag,
-                        Some(
-                            format!(
-                                "no version found in tag {} with pattern {}",
-                                tag, tag_pattern
-                            )
-                            .as_str(),
-                        ),
-                    ))
-                }
-            }
+fn parse_tag(tag_pattern: String, tag: &String) -> Result<Version, Error> {
+    let re = match Regex::new(tag_pattern.as_str()) {
+        Ok(re) => re,
+        Err(error) => {
+            return Err(Error::new(
+                ErrorKind::InvalidTagPattern,
+                Some(error.to_string().as_str()),
+            ))
+        }
+    };
+    let captures = match re.captures(tag) {
+        Some(captures) => captures,
+        None => {
+            return Err(Error::new(
+                ErrorKind::NoVersionInTag,
+                Some(
+                    format!(
+                        "no version found in tag {} with pattern {} asd",
+                        tag, tag_pattern
+                    )
+                    .as_str(),
+                ),
+            ))
+        }
+    };
+    let matched_version = match captures.get(0) {
+        Some(version) => version.as_str().to_owned(),
+        None => {
+            return Err(Error::new(
+                ErrorKind::NoVersionInTag,
+                Some(
+                    format!(
+                        "no version found in tag {} with pattern {}",
+                        tag, tag_pattern
+                    )
+                    .as_str(),
+                ),
+            ))
         }
     };
 
-    match Version::parse(not_parsed_version.as_str()) {
+    match Version::parse(matched_version.as_str()) {
         Ok(version) => Ok(version),
         Err(error) => Err(Error::from(error)),
     }
