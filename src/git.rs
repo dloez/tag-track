@@ -103,7 +103,7 @@ pub fn get_current_commit_sha() -> Result<String, Error> {
 ///
 /// # Arguments
 ///
-/// * `from_commit` - From which commit the oldest closest tag will be optained. If `None` is given, it will default to `HEAD`.
+/// * `from_commit` - From which commit the oldest closest tag will be obtained. If `None` is given, it will default to `HEAD`.
 ///
 /// # Errors
 ///
