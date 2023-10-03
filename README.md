@@ -25,8 +25,8 @@ This will use the latest closest tag and the commit messages between that tag an
 ### Configuration
 Additionally, you can create a `track.yaml` or `track.yml` file to configure:
 
-- Tag format. Use the `tag_pattern` to specify a Regex pattern to get the version from the tag name. For example, to get the version from a tag named `v1.0.0` use the pattern `v(.*)`. If not `tag_pattern` is specified, whole tag name will be used as version.
-- Version bump rules. Use the `bump_rules` to specify the rules used to calculate the version bump. This field accepts a list of rules where each rules has this fields:
+- Tag format. Use the `tag_pattern` to specify a Regex pattern to get the version from the tag name. The regex pattern should capture in the first group the version. For example, to get the version from a tag named `v1.0.0` use the pattern `v(.*)`. If not `tag_pattern` is specified, the regex pattern that will be used is `(.*)`, which treats the whole tag name as the version.
+- Version bump rules. Use the `bump_rules` to specify the rules used to calculate the version bump. This field accepts a list of rules where each rules has these fields:
     * `bump`: Version section to bump. Possible values are `major`, `minor` and `patch`. Example: `bump: major`.
     * `types`: List of commit types. An `OR` operation will be used between list types. Example: `types: [feat, fix]`.
     * `scopes`: List of commit scopes. An `OR` operation will be used between list scopes. Example: `scopes: [api, cli]`.
@@ -41,7 +41,7 @@ bump_rules:
 ```
 This is the default values that Tag Track uses for the different configuration fields:
 ```yaml
-tag_pattern: '.+'
+tag_pattern: '(.*)'
 bump_rules:
     - bump: patch
       types: [fix, style]
