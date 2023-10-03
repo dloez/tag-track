@@ -26,13 +26,37 @@ This will use the latest closest tag and the commit messages between that tag an
 Additionally, you can create a `track.yaml` or `track.yml` file to configure:
 
 - Tag format. Use the `tag_pattern` to specify a Regex pattern to get the version from the tag name. For example, to get the version from a tag named `v1.0.0` use the pattern `v(.*)`. If not `tag_pattern` is specified, whole tag name will be used as version.
+- Version bump rules. Use the `bump_rules` to specify the rules used to calculate the version bump. This field accepts a list of rules where each rules has this fields:
+    * `bump`: Version section to bump. Possible values are `major`, `minor` and `patch`. Example: `bump: major`.
+    * `types`: List of commit types. An `OR` operation will be used between list types. Example: `types: [feat, fix]`.
+    * `scopes`: List of commit scopes. An `OR` operation will be used between list scopes. Example: `scopes: [api, cli]`.
+    * `str_in_type`: Additional characters placed in the commit type after the scope. Example: `str_in_type: '!'`.
+
+If the fields `types`, `scopes` and, `str_in_type` are used in the same rule, an `AND` operation will be used between them. If multiple rules can be applied to the same commit, the biggest version change will be used (Major > Minor > Patch). Example of a configuration file with a rule that bumps the major section if the commit type is `feat` and includes the `!` symbol:
+```yaml
+bump_rules:
+  - bump: major
+    types: [feat]
+    str_in_type: '!'
+```
+This is the default values that Tag Track uses for the different configuration fields:
+```yaml
+tag_pattern: '.+'
+bump_rules:
+    - bump: patch
+      types: [fix, style]
+    - bump: minor
+      types: [feat, refactor, perf]
+    - bump: major
+      str_in_type: '!'
+```
 
 ## Project stability and current status
 Currently, Tag track has a high work-in-progress status, thus we are marking releases as pre-releases. There will be API changes and non-backward compatibility changes during this phase. Here is a list of features and improvements that we want to make before the release of Tag track `1.0.0`:
 
 - [ ] Custom GitHub actions with improved API to use inside GitHub actions jobs.
 - [ ] More remote sources such as GitLab, Gitea, etc.
-- [ ] Custom rules to calculate version bumps based on conventional commit messages.
+- [x] Custom rules to calculate version bumps based on conventional commit messages.
 - [x] Support multiple tag formats. Currently only tags that follow the [semantic versioning 2.0](https://semver.org/) can be parsed.
 - [ ] Support conventional commits message scopes and use the scopes to differentiate between different applications with different versions. This is our attempt to support monorepos.
 - [ ] Improved usage of the git history when using remote sources. Currently if the argument `--create-tag` is not used with the use of a remote source like GitHub REST API, the git history is still required, which does not have sense.
