@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - main
+      - 'milestone/*'
   workflow_call:
   push:
     branches:
