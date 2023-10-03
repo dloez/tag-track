@@ -278,7 +278,7 @@ fn parse_tag(tag_pattern: String, tag: &String) -> Result<Version, Error> {
             ))
         }
     };
-    let matched_version = match captures.get(0) {
+    let matched_version = match captures.get(1) {
         Some(version) => version.as_str().to_owned(),
         None => {
             return Err(Error::new(

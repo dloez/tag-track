@@ -15,7 +15,7 @@ use std::{
     vec,
 };
 
-const DEFAULT_TAG_PATTERN: &str = r".+";
+const DEFAULT_TAG_PATTERN: &str = r"(.*)";
 
 fn get_default_bump_rules() -> Vec<BumpRule> {
     vec![
