@@ -10,6 +10,7 @@ use serde::Deserialize;
 /// Types for different version.
 /// The increment types follow the Semantic Version specification.
 #[derive(Eq, PartialEq, Hash, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum IncrementKind {
     /// Increment the major section of a version.
     Major,
