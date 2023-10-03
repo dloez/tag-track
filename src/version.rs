@@ -86,28 +86,31 @@ pub fn bump_version(
 
             // Check commit type
             if let Some(types) = &rule.types {
-                bump = false;
                 if types.contains(&commit_sections.commit_type) {
                     bump = true;
+                } else {
+                    continue;
                 }
             }
 
             // Check commit scope
             if let Some(scopes) = &rule.scopes {
-                bump = false;
                 if scopes.contains(&commit_sections.scope) {
                     bump = true;
+                } else {
+                    continue;
                 }
             }
 
             // Check additional chars in type
             if let Some(additional_chars) = &rule.str_in_type {
-                bump = false;
                 if commit_sections
                     .commit_type_additional_chars
                     .contains(additional_chars)
                 {
                     bump = true;
+                } else {
+                    continue;
                 }
             }
 
@@ -150,7 +153,7 @@ struct CommitSections {
     scope: String,
 
     /// Additional characters in the commit type. For example, in the commit `feat!: Add new feature`, the char `!`
-    /// would be in thjis field.
+    /// would be in this field.
     commit_type_additional_chars: String,
 
     /// The message of the commit.
