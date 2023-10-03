@@ -37,11 +37,7 @@ fn get_default_bump_rules() -> Vec<BumpRule> {
         },
         BumpRule {
             bump: IncrementKind::Major,
-            types: Some(vec![
-                String::from("feat"),
-                String::from("refactor"),
-                String::from("perf"),
-            ]),
+            types: None,
             scopes: None,
             str_in_type: Some(String::from("!")),
         },
