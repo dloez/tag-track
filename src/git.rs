@@ -8,6 +8,16 @@ use std::process::Command;
 
 use crate::error::{Error, ErrorKind};
 
+/// Type to define a Git commit.
+#[derive(Debug)]
+pub struct Commit {
+    /// Commit SHA.
+    pub sha: String,
+
+    /// Commit message.
+    pub message: String,
+}
+
 /// Verifies the git installation and if the command is being spawned inside a git working tree.
 /// In case git is available and it is being called inside a git working tree, the function will return
 /// `Ok(())`.
@@ -198,15 +208,15 @@ pub fn get_tag_commit_sha(tag: &str) -> Result<String, Error> {
     Ok(String::from(stdout.strip_suffix('\n').unwrap()))
 }
 
-/// Return all commit messages between the given `from_commit` SHA and until the `until_commit` SHA where the oldest
+/// Return all commits between the given `from_commit` SHA and until the `until_commit` SHA where the oldest
 /// commit must be the `from_commit` commit.
 ///
 /// # Arguments
 ///
-/// * `from_commit` - commit SHA of the commit from where the messages should be obtained. The given commit message will
+/// * `from_commit` - commit SHA of the commit from where the commits should be obtained. The given commit will
 /// not be included. This commit should be temporarily older than the commit given in the `until_commit` argument.
 ///
-/// * `until_commit` - commit SHA of the commit until where the messages should be obtained. The given commit message
+/// * `until_commit` - commit SHA of the commit until where the commits should be obtained. The given commit
 /// will be included. This commit should be temporarily newer than the commit given in the `from_commit` argument.
 ///
 /// # Errors
@@ -217,10 +227,10 @@ pub fn get_tag_commit_sha(tag: &str) -> Result<String, Error> {
 /// Returns `error::Error` with a kind of `error::ErrorKind::Other` if the command called returned an unexpected error
 /// causing that the tag commit SHA cannot be obtained.
 ///
-pub fn get_commit_messages(from_commit: &str, until_commit: &str) -> Result<Vec<String>, Error> {
+pub fn get_commits(from_commit: &str, until_commit: &str) -> Result<Vec<Commit>, Error> {
     let output_result = Command::new("git")
         .arg("log")
-        .arg("--format=%s")
+        .arg("--format='%H %s'")
         .arg("--ancestry-path")
         .arg(format!("{}..{}", from_commit, until_commit))
         .output();
@@ -249,8 +259,26 @@ pub fn get_commit_messages(from_commit: &str, until_commit: &str) -> Result<Vec<
         ));
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    Ok(stdout.lines().map(|s| s.to_owned()).collect())
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let mut commits: Vec<Commit> = vec![];
+    for line in stdout.split("\n") {
+        let mut sha = String::new();
+        let mut message = String::new();
+        let mut sha_done = false;
+        for c in line.chars() {
+            if !sha_done {
+                match c {
+                    ' ' => sha_done = true,
+                    _ => sha.push(c),
+                }
+                continue;
+            }
+            message.push(c);
+        }
+
+        commits.push(Commit { sha, message })
+    }
+    Ok(commits)
 }
 
 /// Create the given annotated tag with the given message. Returns `Ok(())` if no errors were found.
