@@ -28,20 +28,20 @@ Additionally, you can create a `track.yaml` or `track.yml` file to configure:
 - Tag format. Use the `tag_pattern` field to specify a Regex pattern to get the version from the tag name. The Regex pattern should capture in the first group the version. For example, to get the version from a tag named `v1.0.0` use the pattern `v(.*)`. If not `tag_pattern` is specified, the Regex pattern that will be used is `(.*)`, which treats the whole tag name as the version.
 - Commit pattern. Use the `commit_pattern` field to specify a Regex pattern to get the commit fields specified in the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0). The pattern shuold contain [naming capturing groups](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Named_capturing_group) for the fields `type`, `scope`, `breaking`, and `description`. The default pattern is `^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>.*)`, this pattern tries to follow the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0/#specification) as close **and simple** as possible while allowing to use custom types.
 - Version bump rules. Use the `bump_rules` field to specify the rules used to calculate the version bump. If a rule condition is missing, that condition will not be evaluated. Each rule has the following fields:
-  * `bump`: Version section to bump. Possible values are `major`, `minor`, and `patch`. Example: `bump: major`.
-  * `types`: Condition - List of commit types. An `OR` operation will be used between list types. Example: `types: [feat, fix]`.
-  * `scopes`: Condition - List of commit scopes. An `OR` operation will be used between list scopes. Example: `scopes: [api, cli]`.
-  * `if_breaking_type`: Condition - If `true`, the rule will trigger if the Regex pattern specified in `commit_pattern` matches the `breaking` section of the commit message. Example: `if_breaking_type: true`.
-  * `if_breaking_description`: Condition - If `true`, the rule will trigger if the strings `BREAKING CHANGE` or `BREAKING-CHANGE` are found in the commit description. Example: `if_breaking_description: true`.
+  * `bump`: Version section to bump. Possible values are `major`, `minor`, and `patch`. Example: `bump: major` - will increase the `major` section of the semantic version if all rule conditions pass.
+  * `types`: Condition - List of commit types. An `OR` operation will be used between list types. Example: `types: [feat, fix]` - will pass the condition if the commit type is `feat` or `fix`.
+  * `scopes`: Condition - List of commit scopes. An `OR` operation will be used between list scopes. Example: `scopes: [api, cli]` - will pass the condition if the commit scope is `api` or `cli`.
+  * `if_breaking_type`: Condition - If `true`, the rule will trigger if the Regex pattern specified in `commit_pattern` matches the `breaking` section of the commit message. Example: `if_breaking_type: true` - will pass the rule if commit type is `feat!` or `docs(api)!` and the default commit pattern is used.
+  * `if_breaking_description`: Condition - If `true`, the rule will trigger if the strings `BREAKING CHANGE` or `BREAKING-CHANGE` are found in the commit description. Example: `if_breaking_description: false` - will not pass the rule if the commit description includes the string `BREAKING CHANGE`.
 
-If the fields `types`, `scopes` and, `str_in_type` are used in the same rule, an `AND` operation will be used between them. If multiple rules can be applied to the same commit, the biggest version change will be used (Major > Minor > Patch). Example of a configuration file with a rule that bumps the major section if the commit type is `feat` and includes the `!` symbol:
+If multiple conditions are used in the same rule, an `AND` operation will be used between them. If multiple rules can be applied to the same commit, the biggest version change will be used (Major > Minor > Patch). Example of a configuration file with a rule that bumps the major section if the commit type is `feat` and matches the `breaking` section (there is the `!` in the commit type):
 ```yaml
 bump_rules:
   - bump: major
     types: [feat]
-    str_in_type: '!'
+    if_breaking_type: true
 ```
-This is the default values that Tag Track uses for the different configuration fields:
+These are the default values that Tag Track uses for the different configuration fields:
 ```yaml
 tag_pattern: '(.*)'
 bump_rules:
@@ -50,7 +50,8 @@ bump_rules:
     - bump: minor
       types: [feat, refactor, perf]
     - bump: major
-      str_in_type: '!'
+      if_breaking_type: true
+      if_breaking_description: true
 ```
 
 ## Project stability and current status
