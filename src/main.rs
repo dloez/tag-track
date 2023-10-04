@@ -152,12 +152,18 @@ fn main() {
 
     let mut output = Output::new(&args);
     output.old_version = version.to_string();
-    let increment_kind = bump_version(
+    let increment_kind = match bump_version(
         &mut version,
         &config.bump_rules,
         commits,
         &config.commit_pattern,
-    );
+    ) {
+        Ok(increment_kind) => increment_kind,
+        Err(error) => {
+            print_error(error, &args, &output_format);
+            exit(1);
+        }
+    };
     output.new_version = version.to_string();
 
     if increment_kind.is_none() {
