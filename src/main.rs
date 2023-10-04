@@ -142,75 +142,80 @@ fn main() {
         }
     };
 
-    // let commit_messages = match source.get_commit_messages() {
-    //     Ok(commit_messages) => commit_messages,
-    //     Err(error) => {
-    //         print_error(error, &args, &output_format);
-    //         exit(1);
-    //     }
-    // };
+    let commits = match source.get_commits() {
+        Ok(commits) => commits,
+        Err(error) => {
+            print_error(error, &args, &output_format);
+            exit(1);
+        }
+    };
 
-    // let mut output = Output::new(&args);
-    // output.old_version = version.to_string();
-    // let increment_kind = bump_version(&mut version, &config.bump_rules, commit_messages);
-    // output.new_version = version.to_string();
+    let mut output = Output::new(&args);
+    output.old_version = version.to_string();
+    let increment_kind = bump_version(
+        &mut version,
+        &config.bump_rules,
+        commits,
+        &config.commit_pattern,
+    );
+    output.new_version = version.to_string();
 
-    // if increment_kind.is_none() {
-    //     match output_format {
-    //         OutputFormat::Text => println!("version bump not required"),
-    //         OutputFormat::Json => {
-    //             let mut output = Output::new(&args);
-    //             output.old_version = version.to_string();
-    //             output.new_version = version.to_string();
-    //             if let Ok(json_str) = to_string_pretty(&output) {
-    //                 println!("{}", json_str);
-    //             } else {
-    //                 println!("could not serialize {:?}", output);
-    //             }
-    //         }
-    //     }
-    //     exit(0);
-    // }
+    if increment_kind.is_none() {
+        match output_format {
+            OutputFormat::Text => println!("version bump not required"),
+            OutputFormat::Json => {
+                let mut output = Output::new(&args);
+                output.old_version = version.to_string();
+                output.new_version = version.to_string();
+                if let Ok(json_str) = to_string_pretty(&output) {
+                    println!("{}", json_str);
+                } else {
+                    println!("could not serialize {:?}", output);
+                }
+            }
+        }
+        exit(0);
+    }
 
-    // if let OutputFormat::Text = output_format {
-    //     println!(
-    //         "version change: {} -> {}",
-    //         output.old_version, output.new_version
-    //     )
-    // }
+    if let OutputFormat::Text = output_format {
+        println!(
+            "version change: {} -> {}",
+            output.old_version, output.new_version
+        )
+    }
 
-    // if !args.create_tag {
-    //     if let OutputFormat::Json = output_format {
-    //         if let Ok(json_str) = to_string_pretty(&output) {
-    //             println!("{}", json_str);
-    //         } else {
-    //             println!("could not serialize {:?}", output);
-    //         }
-    //     }
-    //     exit(0);
-    // }
+    if !args.create_tag {
+        if let OutputFormat::Json = output_format {
+            if let Ok(json_str) = to_string_pretty(&output) {
+                println!("{}", json_str);
+            } else {
+                println!("could not serialize {:?}", output);
+            }
+        }
+        exit(0);
+    }
 
-    // let tag_message = format!("Version {}", version);
-    // let result = git::create_tag(&version.to_string(), &tag_message);
-    // match result {
-    //     Err(error) => {
-    //         print_error(error, &args, &output_format);
-    //         exit(1);
-    //     }
-    //     Ok(_) => {
-    //         output.created_tag = true;
-    //         match output_format {
-    //             OutputFormat::Text => println!("tag '{}' created!", version),
-    //             OutputFormat::Json => {
-    //                 if let Ok(json_str) = to_string_pretty(&output) {
-    //                     println!("{}", json_str);
-    //                 } else {
-    //                     println!("could not serialize {:?}", output);
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
+    let tag_message = format!("Version {}", version);
+    let result = git::create_tag(&version.to_string(), &tag_message);
+    match result {
+        Err(error) => {
+            print_error(error, &args, &output_format);
+            exit(1);
+        }
+        Ok(_) => {
+            output.created_tag = true;
+            match output_format {
+                OutputFormat::Text => println!("tag '{}' created!", version),
+                OutputFormat::Json => {
+                    if let Ok(json_str) = to_string_pretty(&output) {
+                        println!("{}", json_str);
+                    } else {
+                        println!("could not serialize {:?}", output);
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Print the given error in the given output format.

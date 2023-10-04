@@ -15,7 +15,12 @@ use std::{
     vec,
 };
 
+/// Default Regex pattern used to validate tags and extract the version from it.
 const DEFAULT_TAG_PATTERN: &str = r"(.*)";
+
+/// Default Regex pattern used to validate conventional commits and extract the required fields from it.
+const DEFAULT_COMMIT_PATTERN: &str =
+    r"^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>.*)";
 
 fn get_default_bump_rules() -> Vec<BumpRule> {
     vec![
@@ -50,6 +55,14 @@ pub struct ParsedConfig {
     /// The tag pattern used to extract the version number from Git tags.
     pub tag_pattern: Option<String>,
 
+    /// The commit pattern used validate and collect information from conventional commits.
+    /// The pattern should expose the following named capture groups:
+    /// - `type`: The type of the commit. Required.
+    /// - `scope`: The scope of the commit.
+    /// - `breaking`: The breaking change indicator of the commit, normally it is the `!` char in the type.
+    /// - `description`: The description of the commit. Required.
+    pub commit_pattern: Option<String>,
+
     /// Rules for bumping the version number.
     pub bump_rules: Option<Vec<BumpRule>>,
 }
@@ -67,7 +80,7 @@ pub struct BumpRule {
     pub scopes: Option<Vec<String>>,
 
     /// Which string inside the commit type triggers the rule.
-    pub str_in_type: Option<String>,
+    pub if_breaking: Option<String>,
 }
 
 /// Type used to add default fields to the missing configuration field fields.
@@ -75,6 +88,14 @@ pub struct BumpRule {
 pub struct Config {
     /// The tag pattern used to extract the version number from Git tags.
     pub tag_pattern: String,
+
+    /// The commit pattern used validate and collect information from conventional commits.
+    /// The pattern should expose the following named capture groups:
+    /// - `type`: The type of the commit. Required.
+    /// - `scope`: The scope of the commit.
+    /// - `breaking`: The breaking change indicator of the commit, normally it is the `!` char in the type.
+    /// - `description`: The description of the commit. Required.
+    pub commit_pattern: String,
 
     /// Rules for bumping the version number.
     pub bump_rules: Vec<BumpRule>,
@@ -87,6 +108,11 @@ impl From<ParsedConfig> for Config {
             None => DEFAULT_TAG_PATTERN.to_owned(),
         };
 
+        let commit_pattern = match parsed_config.commit_pattern {
+            Some(commit_pattern) => commit_pattern,
+            None => DEFAULT_COMMIT_PATTERN.to_owned(),
+        };
+
         let bump_rules: Vec<BumpRule> = match parsed_config.bump_rules {
             Some(bump_rules) => bump_rules,
             None => get_default_bump_rules(),
@@ -94,6 +120,7 @@ impl From<ParsedConfig> for Config {
 
         Self {
             tag_pattern,
+            commit_pattern,
             bump_rules,
         }
     }
@@ -103,6 +130,7 @@ impl Config {
     pub fn new() -> Config {
         Self {
             tag_pattern: DEFAULT_TAG_PATTERN.to_owned(),
+            commit_pattern: DEFAULT_COMMIT_PATTERN.to_owned(),
             bump_rules: get_default_bump_rules(),
         }
     }
