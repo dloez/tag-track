@@ -6,6 +6,7 @@
 //!
 
 use crate::error::{Error, ErrorKind};
+use crate::git::Commit;
 use crate::source::SourceActions;
 use reqwest;
 use serde::Deserialize;
@@ -26,8 +27,8 @@ const DEFAULT_PER_PAGE: u64 = 100;
 
 /// Type that represents the required data for `tag-track` to calculate a version bump.
 pub struct GithubSource {
-    /// Commit messages used to calculate the version bump.
-    commit_messages: Vec<String>,
+    /// Commit used to calculate the version bump.
+    commits: Vec<Commit>,
     /// Oldest closest git tag. All commits between the referenced commit by this tag
     /// and the current/given commit will be used to calculate the version bump.
     oldest_closest_tag: String,
@@ -54,7 +55,7 @@ impl GithubSource {
     ///
     pub fn new(repo_id: String, token: Option<String>) -> Self {
         Self {
-            commit_messages: vec![],
+            commits: vec![],
             oldest_closest_tag: "".to_owned(),
             oldest_closest_tag_commit_sha: "".to_owned(),
             remote_fetched: false,
@@ -91,10 +92,7 @@ impl SourceActions for GithubSource {
 
         let commit_iterator = CommitIterator::new(&self.repo_id, &self.token, sha);
         for commit in commit_iterator {
-            let commit = match commit {
-                Ok(commit) => commit,
-                Err(error) => return Err(error),
-            };
+            let commit = commit?;
             let tag = find_tag_from_commit_sha(&commit.sha, &tags);
 
             if let Some(tag) = tag {
@@ -102,7 +100,7 @@ impl SourceActions for GithubSource {
                 self.oldest_closest_tag_commit_sha = tag.commit.sha;
                 break;
             }
-            self.commit_messages.push(commit.commit.message);
+            self.commits.push(commit.into());
         }
 
         if self.oldest_closest_tag.is_empty() {
@@ -121,14 +119,14 @@ impl SourceActions for GithubSource {
     /// Returns `error::Error` with the type of `error::ErrorKind::SourceNotFetched` if the function is being
     /// called without calling `fetch_from_commit` before.
     ///
-    fn get_commit_messages(&self) -> Result<&Vec<String>, Error> {
+    fn get_commits(&self) -> Result<&Vec<Commit>, Error> {
         if !self.remote_fetched {
             return Err(Error::new(
                 ErrorKind::SourceNotFetched,
                 Some("get_commit_messages"),
             ));
         }
-        Ok(&self.commit_messages)
+        Ok(&self.commits)
     }
 
     /// Returns the oldest closest git tag. This function can not be called without `fetch_from_commit` being called before
@@ -178,6 +176,15 @@ struct GithubCommitDetails {
 #[derive(Debug, Deserialize, Clone)]
 struct GithubCommit {
     message: String,
+}
+
+impl Into<Commit> for GithubCommitDetails {
+    fn into(self) -> Commit {
+        Commit {
+            sha: self.sha,
+            message: self.commit.message,
+        }
+    }
 }
 
 /// Type used to iterate over GitHub commits. This type implements the `Iterator` trait

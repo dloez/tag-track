@@ -7,12 +7,13 @@
 
 use crate::error::{Error, ErrorKind};
 use crate::git;
+use crate::git::Commit;
 use crate::source::SourceActions;
 
 /// Type that represents the required data for `tag-track` to calculate a version bump.
 pub struct GitSource {
-    /// Commit messages used to calculate the version bump.
-    commit_messages: Vec<String>,
+    /// Commits used to calculate the version bump.
+    commits: Vec<Commit>,
     /// Oldest closest git tag. All commits between the referenced commit by this tag
     /// and the current/given commit will be used to calculate the version bump.
     oldest_closest_tag: String,
@@ -27,7 +28,7 @@ impl GitSource {
     /// Returns a new instance of a `GitSource` source.
     pub fn new() -> Self {
         Self {
-            commit_messages: vec![],
+            commits: vec![],
             oldest_closest_tag: "".to_owned(),
             oldest_closest_tag_commit_sha: "".to_owned(),
             remote_fetched: false,
@@ -36,7 +37,7 @@ impl GitSource {
 }
 
 impl SourceActions for GitSource {
-    /// Returns commit messages. This function can not be called without `fetch_from_commit` being called before
+    /// Returns commits. This function can not be called without `fetch_from_commit` being called before
     /// as that is the function that feeds tag track with data from the source.
     ///
     /// # Errors
@@ -44,11 +45,11 @@ impl SourceActions for GitSource {
     /// Returns `error::Error` with the type of `error::ErrorKind::SourceNotFetched` if the function is being
     /// called without calling `fetch_from_commit` before.
     ///
-    fn get_commit_messages(&self) -> Result<&Vec<String>, Error> {
+    fn get_commits(&self) -> Result<&Vec<Commit>, Error> {
         if !self.remote_fetched {
             return Err(Error::new(ErrorKind::SourceNotFetched, None));
         }
-        Ok(&self.commit_messages)
+        Ok(&self.commits)
     }
 
     /// Fetches the source to gather the required data to calculate a version bump. This source uses the git history to
@@ -79,7 +80,7 @@ impl SourceActions for GitSource {
             Err(error) => return Err(error),
         };
 
-        self.commit_messages = git::get_commit_messages(&self.oldest_closest_tag_commit_sha, sha)?;
+        self.commits = git::get_commits(&self.oldest_closest_tag_commit_sha, sha)?;
         self.remote_fetched = true;
         Ok(())
     }

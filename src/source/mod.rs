@@ -7,6 +7,7 @@
 //!
 
 use crate::error::Error;
+use crate::git::Commit;
 use enum_dispatch::enum_dispatch;
 
 pub mod git;
@@ -23,7 +24,7 @@ pub trait SourceActions {
     /// Returns `error::Error` with the type of `error::ErrorKind::SourceNotFetched` if the function is being
     /// called without calling `fetch_from_commit` before.
     ///
-    fn get_commit_messages(&self) -> Result<&Vec<String>, Error>;
+    fn get_commits(&self) -> Result<&Vec<Commit>, Error>;
 
     /// Returns the oldest closest git tag. This function can not be called without `fetch_from_commit` being called before
     /// as that is the function that feeds tag track with data from the source.
