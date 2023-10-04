@@ -28,7 +28,8 @@ fn get_default_bump_rules() -> Vec<BumpRule> {
             bump: IncrementKind::Patch,
             types: Some(vec![String::from("fix"), String::from("style")]),
             scopes: None,
-            str_in_type: None,
+            if_breaking_field: None,
+            if_breaking_description: None,
         },
         BumpRule {
             bump: IncrementKind::Minor,
@@ -38,13 +39,15 @@ fn get_default_bump_rules() -> Vec<BumpRule> {
                 String::from("perf"),
             ]),
             scopes: None,
-            str_in_type: None,
+            if_breaking_field: None,
+            if_breaking_description: None,
         },
         BumpRule {
             bump: IncrementKind::Major,
             types: None,
             scopes: None,
-            str_in_type: Some(String::from("!")),
+            if_breaking_field: Some(true),
+            if_breaking_description: Some(true),
         },
     ]
 }
@@ -79,8 +82,11 @@ pub struct BumpRule {
     /// Which scopes trigger the rule.
     pub scopes: Option<Vec<String>>,
 
-    /// Which string inside the commit type triggers the rule.
-    pub if_breaking: Option<String>,
+    /// Use `true` if you want the rule to trigger if the field `breaking` in the commit pattern matches.
+    pub if_breaking_field: Option<bool>,
+
+    /// Use `true` if you want the rule to trigger if the commit description includes the strings 'BREAKING CHANGE' or 'BREAKING-CHANGE'.
+    pub if_breaking_description: Option<bool>,
 }
 
 /// Type used to add default fields to the missing configuration field fields.
@@ -102,6 +108,7 @@ pub struct Config {
 }
 
 impl From<ParsedConfig> for Config {
+    /// Convert from `ParsedConfig` to `Config`. If any of the fields are missing, the default values are used.
     fn from(parsed_config: ParsedConfig) -> Self {
         let tag_pattern = match parsed_config.tag_pattern {
             Some(tag_pattern) => tag_pattern,
@@ -127,6 +134,7 @@ impl From<ParsedConfig> for Config {
 }
 
 impl Config {
+    /// Create a new instance of `Config` wiht detaulf values.
     pub fn new() -> Config {
         Self {
             tag_pattern: DEFAULT_TAG_PATTERN.to_owned(),
