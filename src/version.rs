@@ -3,7 +3,12 @@
 //! Version increments follow the Semantic Versioning 2.0
 //!
 
-use crate::config::BumpRule;
+use crate::{
+    config::BumpRule,
+    error::{Error, ErrorKind},
+    git::Commit,
+};
+use regex::Regex;
 use semver::{BuildMetadata, Prerelease, Version};
 use serde::Deserialize;
 
@@ -76,11 +81,12 @@ pub fn increment_major(version: &mut Version) {
 pub fn bump_version(
     version: &mut Version,
     rules: &Vec<BumpRule>,
-    commits: &Vec<String>,
+    commits: &Vec<Commit>,
+    commit_pattern: &str,
 ) -> Option<IncrementKind> {
     let mut increment_kind: Option<IncrementKind> = None;
     'commits: for commit in commits {
-        let commit_sections = extract_commit_sections(commit);
+        let commit_sections = extract_commit_details(&commit, commit_pattern).unwrap();
         for rule in rules {
             let mut bump = false;
 
@@ -145,78 +151,94 @@ pub fn bump_version(
 
 /// Type to represent the sections of a conventional commit message.
 #[derive(Debug)]
-struct CommitSections {
+struct CommitDetails {
     /// The type of the commit.
     commit_type: String,
 
     /// The scope of the commit.
     scope: String,
 
-    /// Additional characters in the commit type. For example, in the commit `feat!: Add new feature`, the char `!`
-    /// would be in this field.
-    commit_type_additional_chars: String,
+    /// If the commit includes a breaking change. Typically this is true if the commit type includes the `!` char.
+    breaking: bool,
 
-    /// The message of the commit.
-    _message: String,
+    /// The description of the conventional commit.
+    _description: String,
 }
 
-/// Extracts the commit sections from a commit message.
+const TYPE_FIELD: &str = "type";
+const SCOPE_FIELD: &str = "scope";
+const BREAKING_FIELD: &str = "breaking";
+const DESCRIPTION_FIELD: &str = "description";
+
+/// Extracts the commit details from a commit message.
 ///
 /// # Arguments
 ///
 /// * `commit` - Commit message that will be parsed.
 ///
-fn extract_commit_sections(commit: &str) -> CommitSections {
-    let mut commit_type = String::new();
-    let mut scope = String::new();
-    let mut commit_type_additional_chars = String::new();
-    let mut message = String::new();
-
-    let mut commit_type_done = false;
-    let mut scope_done = false;
-    let mut commit_type_additional_chars_done = false;
-    let mut scope_found = false;
-
-    for c in commit.chars() {
-        if !commit_type_done {
-            match c {
-                '(' => {
-                    scope_found = true;
-                    commit_type_done = true;
-                }
-                ':' => {
-                    commit_type_done = true;
-                    scope_done = true;
-                    commit_type_additional_chars_done = true;
-                }
-                _ => commit_type.push(c),
-            }
-            continue;
+/// * `commit_pattern` - Pattern that will be used to parse the conventional commit.
+///
+fn extract_commit_details(commit: &Commit, commit_pattern: &str) -> Result<CommitDetails, Error> {
+    let re = match Regex::new(commit_pattern) {
+        Ok(re) => re,
+        Err(error) => {
+            return Err(Error::new(
+                ErrorKind::InvalidCommitPattern,
+                Some(error.to_string().as_str()),
+            ))
         }
+    };
 
-        if !scope_done && scope_found {
-            match c {
-                ')' => scope_done = true,
-                _ => scope.push(c),
-            }
-            continue;
+    let captures = match re.captures(&commit.message) {
+        Some(captures) => captures,
+        None => {
+            return Err(Error::new(
+                ErrorKind::InvalidCommitPattern,
+                Some(
+                    format!(
+                        "commit {} does not match pattern {}",
+                        commit.message, commit_pattern
+                    )
+                    .as_str(),
+                ),
+            ))
         }
+    };
 
-        if !commit_type_additional_chars_done {
-            match c {
-                ':' => commit_type_additional_chars_done = true,
-                _ => commit_type_additional_chars.push(c),
-            }
-            continue;
+    let commit_type = match captures.name(TYPE_FIELD) {
+        None => {
+            return Err(Error::new(
+                ErrorKind::InvalidCommitPattern,
+                Some("missing commit type"),
+            ))
         }
+        Some(found_match) => found_match.as_str().trim().to_string(),
+    };
 
-        message.push(c);
-    }
+    let scope = match captures.name(SCOPE_FIELD) {
+        None => "".to_string(),
+        Some(found_match) => found_match.as_str().trim().to_string(),
+    };
 
-    CommitSections {
-        commit_type: commit_type.trim().to_string(),
-        scope: scope.trim().to_string(),
-        commit_type_additional_chars: commit_type_additional_chars.trim().to_string(),
-        _message: message.trim().to_string(),
-    }
+    let breaking = match captures.name(BREAKING_FIELD) {
+        None => false,
+        Some(_) => true,
+    };
+
+    let description = match captures.name(DESCRIPTION_FIELD) {
+        None => {
+            return Err(Error::new(
+                ErrorKind::InvalidCommitPattern,
+                Some("missing commit description"),
+            ))
+        }
+        Some(found_match) => found_match.as_str().trim().to_string(),
+    };
+
+    Ok(CommitDetails {
+        commit_type,
+        scope,
+        breaking,
+        _description: description,
+    })
 }
