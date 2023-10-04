@@ -25,7 +25,9 @@ pub enum ErrorKind {
     MissingGitOldestClosestTag,
     /// The user given output format is not valid.
     NotValidOutputFormat,
-    /// The tag pattern does not match the default/given pattern.
+    /// The commit regex pattern is not valid.
+    InvalidCommitPattern,
+    /// The tag pattern is not valid.
     InvalidTagPattern,
     /// The tag does not contain a version.
     NoVersionInTag,
@@ -48,7 +50,8 @@ impl ErrorKind {
             MissingGitTags => "there are no tags in source",
             MissingGitOldestClosestTag => "cannot find closest tag",
             NotValidOutputFormat => "the specified output format is not valid",
-            InvalidTagPattern => "the tag pattern does not match the default/given pattern",
+            InvalidCommitPattern => "the commit pattern is not valid",
+            InvalidTagPattern => "the tag pattern is not valid",
             NoVersionInTag => "the tag does not contain a version",
             Other => "other error",
         }
