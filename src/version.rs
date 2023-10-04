@@ -78,21 +78,28 @@ pub fn increment_major(version: &mut Version) {
 ///
 /// * `commits` - Commits that will be used to determine the increment kind.
 ///
+/// * `commit_pattern` - Pattern that will be used to parse the conventional commit.
+///
+/// # Errors
+///
+/// Returns `error::Error` with the type of `error::ErrorKind::InvalidCommitPattern` if the given Regex pattern for the commit is not a valid.
+///
 pub fn bump_version(
     version: &mut Version,
     rules: &Vec<BumpRule>,
     commits: &Vec<Commit>,
     commit_pattern: &str,
-) -> Option<IncrementKind> {
+) -> Result<Option<IncrementKind>, Error> {
     let mut increment_kind: Option<IncrementKind> = None;
     'commits: for commit in commits {
-        let commit_sections = extract_commit_details(&commit, commit_pattern).unwrap();
+        let commit_details = extract_commit_details(&commit, commit_pattern)?;
+
         for rule in rules {
             let mut bump = false;
 
             // Check commit type
             if let Some(types) = &rule.types {
-                if types.contains(&commit_sections.commit_type) {
+                if types.contains(&commit_details.commit_type) {
                     bump = true;
                 } else {
                     continue;
@@ -101,18 +108,27 @@ pub fn bump_version(
 
             // Check commit scope
             if let Some(scopes) = &rule.scopes {
-                if scopes.contains(&commit_sections.scope) {
+                if scopes.contains(&commit_details.scope) {
                     bump = true;
                 } else {
                     continue;
                 }
             }
 
-            // Check additional chars in type
-            if let Some(additional_chars) = &rule.str_in_type {
-                if commit_sections
-                    .commit_type_additional_chars
-                    .contains(additional_chars)
+            // Check breaking field
+            if let Some(if_breaking_field) = &rule.if_breaking_field {
+                if *if_breaking_field && commit_details.breaking {
+                    bump = true;
+                } else {
+                    continue;
+                }
+            }
+
+            // Check breaking description
+            if let Some(if_breaking_description) = &rule.if_breaking_description {
+                if *if_breaking_description
+                    && (commit_details.description.contains("BREAKING CHANGE")
+                        || commit_details.description.contains("BREAKING-CHANGE"))
                 {
                     bump = true;
                 } else {
@@ -146,7 +162,7 @@ pub fn bump_version(
         None => {}
     };
 
-    increment_kind
+    Ok(increment_kind)
 }
 
 /// Type to represent the sections of a conventional commit message.
@@ -162,7 +178,7 @@ struct CommitDetails {
     breaking: bool,
 
     /// The description of the conventional commit.
-    _description: String,
+    description: String,
 }
 
 const TYPE_FIELD: &str = "type";
@@ -177,6 +193,10 @@ const DESCRIPTION_FIELD: &str = "description";
 /// * `commit` - Commit message that will be parsed.
 ///
 /// * `commit_pattern` - Pattern that will be used to parse the conventional commit.
+///
+/// # Errors
+///
+/// Returns `error::Error` with the type of `error::ErrorKind::InvalidCommitPattern` if the given Regex pattern for the commit is not a valid.
 ///
 fn extract_commit_details(commit: &Commit, commit_pattern: &str) -> Result<CommitDetails, Error> {
     let re = match Regex::new(commit_pattern) {
@@ -217,7 +237,12 @@ fn extract_commit_details(commit: &Commit, commit_pattern: &str) -> Result<Commi
 
     let scope = match captures.name(SCOPE_FIELD) {
         None => "".to_string(),
-        Some(found_match) => found_match.as_str().trim().to_string(),
+        Some(found_match) => found_match
+            .as_str()
+            .replace("(", "")
+            .replace(")", "")
+            .trim()
+            .to_string(),
     };
 
     let breaking = match captures.name(BREAKING_FIELD) {
@@ -239,6 +264,6 @@ fn extract_commit_details(commit: &Commit, commit_pattern: &str) -> Result<Commi
         commit_type,
         scope,
         breaking,
-        _description: description,
+        description,
     })
 }

@@ -230,7 +230,7 @@ pub fn get_tag_commit_sha(tag: &str) -> Result<String, Error> {
 pub fn get_commits(from_commit: &str, until_commit: &str) -> Result<Vec<Commit>, Error> {
     let output_result = Command::new("git")
         .arg("log")
-        .arg("--format='%H %s'")
+        .arg("--format=%H %s")
         .arg("--ancestry-path")
         .arg(format!("{}..{}", from_commit, until_commit))
         .output();
@@ -276,7 +276,7 @@ pub fn get_commits(from_commit: &str, until_commit: &str) -> Result<Vec<Commit>,
             message.push(c);
         }
 
-        commits.push(Commit { sha, message })
+        commits.push(Commit { sha, message });
     }
     Ok(commits)
 }
