@@ -20,7 +20,7 @@ const DEFAULT_TAG_PATTERN: &str = r"(.*)";
 
 /// Default Regex pattern used to validate conventional commits and extract the required fields from it.
 pub const DEFAULT_COMMIT_PATTERN: &str =
-    r"^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)";
+    r"^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$";
 
 fn get_default_bump_rules() -> Vec<BumpRule> {
     vec![
