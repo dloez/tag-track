@@ -1,4 +1,4 @@
-name: Build and lint
+name: Build, lint, and test
 on:
   pull_request:
     branches:
@@ -54,7 +54,7 @@ jobs:
           path: ${{ github.workspace }}/target/${{ matrix.os-target.target }}/release/tag-track${{ matrix.os-target.target == 'x86_64-pc-windows-msvc' && '.exe' || '' }}
           if-no-files-found: error
           retention-days: 5
-  lint:
+  lint-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -68,3 +68,5 @@ jobs:
         run: cargo clippy -- -D warnings
       - name: Run rustfmt
         run: cargo fmt --all -- --check
+      - name: Run cargo test
+        run: cargo test --all
