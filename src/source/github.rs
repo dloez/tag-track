@@ -178,11 +178,11 @@ struct GithubCommit {
     message: String,
 }
 
-impl Into<Commit> for GithubCommitDetails {
-    fn into(self) -> Commit {
+impl From<GithubCommitDetails> for Commit {
+    fn from(val: GithubCommitDetails) -> Self {
         Commit {
-            sha: self.sha,
-            message: self.commit.message,
+            sha: val.sha,
+            message: val.commit.message,
         }
     }
 }
