@@ -92,7 +92,7 @@ pub fn bump_version(
 ) -> Result<Option<IncrementKind>, Error> {
     let mut increment_kind: Option<IncrementKind> = None;
     'commits: for commit in commits {
-        let commit_details = match extract_commit_details(&commit, commit_pattern) {
+        let commit_details = match extract_commit_details(commit, commit_pattern) {
             Ok(commit_details) => commit_details,
             Err(error) => match error.kind {
                 ErrorKind::InvalidCommitPattern => {
@@ -248,16 +248,12 @@ fn extract_commit_details(commit: &Commit, commit_pattern: &str) -> Result<Commi
         None => "".to_string(),
         Some(found_match) => found_match
             .as_str()
-            .replace("(", "")
-            .replace(")", "")
+            .replace(['(', ')'], "")
             .trim()
             .to_string(),
     };
 
-    let breaking = match captures.name(BREAKING_FIELD) {
-        None => false,
-        Some(_) => true,
-    };
+    let breaking = captures.name(BREAKING_FIELD).is_some();
 
     let description = match captures.name(DESCRIPTION_FIELD) {
         None => {
@@ -299,7 +295,7 @@ mod tests {
             extract_commit_details(&commit, crate::config::DEFAULT_COMMIT_PATTERN).unwrap();
         assert_eq!(commit_details.commit_type, "feat");
         assert_eq!(commit_details.scope, "scope");
-        assert_eq!(commit_details.breaking, false);
+        assert!(!commit_details.breaking);
         assert_eq!(commit_details.description, "add new feature");
         let commit = Commit {
             sha: "1234567890".to_string(),
@@ -310,7 +306,7 @@ mod tests {
             extract_commit_details(&commit, crate::config::DEFAULT_COMMIT_PATTERN).unwrap();
         assert_eq!(commit_details.commit_type, "feat");
         assert_eq!(commit_details.scope, "scope");
-        assert_eq!(commit_details.breaking, true);
+        assert!(commit_details.breaking);
         assert_eq!(commit_details.description, "add new feature");
 
         let commit = Commit {
@@ -321,7 +317,7 @@ mod tests {
             extract_commit_details(&commit, crate::config::DEFAULT_COMMIT_PATTERN).unwrap();
         assert_eq!(commit_details.commit_type, "feat");
         assert_eq!(commit_details.scope, "");
-        assert_eq!(commit_details.breaking, false);
+        assert!(!commit_details.breaking);
         assert_eq!(commit_details.description, "add new feature");
 
         let commit = Commit {
@@ -333,7 +329,7 @@ mod tests {
             extract_commit_details(&commit, crate::config::DEFAULT_COMMIT_PATTERN).unwrap();
         assert_eq!(commit_details.commit_type, "feat");
         assert_eq!(commit_details.scope, "");
-        assert_eq!(commit_details.breaking, false);
+        assert!(!commit_details.breaking);
         assert_eq!(
             commit_details.description,
             "add new feature\n\nBREAKING CHANGE: this is a breaking change"
@@ -358,19 +354,17 @@ mod tests {
     #[test]
     fn bump_version_major() {
         let mut version = Version::parse("1.2.3").unwrap();
-        let mut commits = Vec::new();
-        commits.push(Commit {
+        let commits = vec![Commit {
             sha: "1234567890".to_string(),
             message: "feat(scope): add new feature".to_string(),
-        });
-        let mut rules = Vec::new();
-        rules.push(BumpRule {
+        }];
+        let rules = vec![BumpRule {
             types: Some(vec!["feat".to_string()]),
             scopes: None,
             if_breaking_field: None,
             if_breaking_description: None,
             bump: IncrementKind::Major,
-        });
+        }];
         let increment_kind = bump_version(
             &mut version,
             &rules,
@@ -382,19 +376,17 @@ mod tests {
         assert_eq!(version.to_string(), "2.0.0");
 
         let mut version = Version::parse("1.2.3").unwrap();
-        let mut commits = Vec::new();
-        commits.push(Commit {
+        let commits = vec![Commit {
             sha: "1234567890".to_string(),
             message: "feat(scope): add new feature".to_string(),
-        });
-        let mut rules = Vec::new();
-        rules.push(BumpRule {
+        }];
+        let rules = vec![BumpRule {
             types: None,
             scopes: Some(vec!["scope".to_string()]),
             if_breaking_field: None,
             if_breaking_description: None,
             bump: IncrementKind::Major,
-        });
+        }];
         let increment_kind = bump_version(
             &mut version,
             &rules,
@@ -406,19 +398,17 @@ mod tests {
         assert_eq!(version.to_string(), "2.0.0");
 
         let mut version = Version::parse("1.2.3").unwrap();
-        let mut commits = Vec::new();
-        commits.push(Commit {
+        let commits = vec![Commit {
             sha: "1234567890".to_string(),
             message: "feat(scope)!: add new feature".to_string(),
-        });
-        let mut rules = Vec::new();
-        rules.push(BumpRule {
+        }];
+        let rules = vec![BumpRule {
             types: None,
             scopes: None,
             if_breaking_field: Some(true),
             if_breaking_description: None,
             bump: IncrementKind::Major,
-        });
+        }];
         let increment_kind = bump_version(
             &mut version,
             &rules,
