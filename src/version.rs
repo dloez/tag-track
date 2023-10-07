@@ -92,7 +92,16 @@ pub fn bump_version(
 ) -> Result<Option<IncrementKind>, Error> {
     let mut increment_kind: Option<IncrementKind> = None;
     'commits: for commit in commits {
-        let commit_details = extract_commit_details(&commit, commit_pattern)?;
+        let commit_details = match extract_commit_details(&commit, commit_pattern) {
+            Ok(commit_details) => commit_details,
+            Err(error) => match error.kind {
+                ErrorKind::InvalidCommitPattern => {
+                    println!("commit {} does not match the commit pattern", commit.sha);
+                    continue;
+                }
+                _ => return Err(error),
+            },
+        };
 
         for rule in rules {
             let mut bump = false;
@@ -203,8 +212,8 @@ fn extract_commit_details(commit: &Commit, commit_pattern: &str) -> Result<Commi
         Ok(re) => re,
         Err(error) => {
             return Err(Error::new(
-                ErrorKind::InvalidCommitPattern,
-                Some(error.to_string().as_str()),
+                ErrorKind::InvalidRegexPattern,
+                Some(format!("{} - {}", commit_pattern, error.to_string().as_str()).as_str()),
             ))
         }
     };

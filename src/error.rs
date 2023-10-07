@@ -24,10 +24,12 @@ pub enum ErrorKind {
     /// Can not find the git oldest closest tag.
     MissingGitOldestClosestTag,
     /// The user given output format is not valid.
-    NotValidOutputFormat,
-    /// The commit regex pattern is not valid.
+    InvalidOutputFormat,
+    /// The regex pattern is not valid.
+    InvalidRegexPattern,
+    /// The commit pattern does not match the commit.
     InvalidCommitPattern,
-    /// The tag pattern is not valid.
+    /// The tag pattern does not match the tag.
     InvalidTagPattern,
     /// The tag does not contain a version.
     NoVersionInTag,
@@ -49,9 +51,10 @@ impl ErrorKind {
             GithubRestError => "error while calling GitHub REST API",
             MissingGitTags => "there are no tags in source",
             MissingGitOldestClosestTag => "cannot find closest tag",
-            NotValidOutputFormat => "the specified output format is not valid",
-            InvalidCommitPattern => "the commit pattern is not valid",
-            InvalidTagPattern => "the tag pattern is not valid",
+            InvalidOutputFormat => "the specified output format is not valid",
+            InvalidRegexPattern => "the regex pattern is not valid",
+            InvalidCommitPattern => "the commit pattern does not match the commit",
+            InvalidTagPattern => "the tag pattern does not match the tag",
             NoVersionInTag => "the tag does not contain a version",
             Other => "other error",
         }
