@@ -5,7 +5,7 @@ on:
       - main
 jobs:
   call-build_lint:
-    uses: ./.github/workflows/build_lint.yml
+    uses: ./.github/workflows/build_lint_test.yml
     secrets: inherit
   create_tag:
     runs-on: ubuntu-latest
