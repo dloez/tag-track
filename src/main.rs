@@ -79,7 +79,7 @@ fn main() {
         "text" => OutputFormat::Text,
         "json" => OutputFormat::Json,
         value => {
-            let error = Error::new(ErrorKind::NotValidOutputFormat, Some(value));
+            let error = Error::new(ErrorKind::InvalidOutputFormat, Some(value));
             println!("{}", error);
             exit(1);
         }
