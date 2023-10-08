@@ -16,7 +16,7 @@ use std::{
 };
 
 /// Default Regex pattern used to validate tags and extract the version from it.
-const DEFAULT_TAG_PATTERN: &str = r"(.*)";
+const DEFAULT_TAG_PATTERN: &str = r"(?<version>.*)";
 
 /// Default Regex pattern used to validate conventional commits and extract the required fields from it.
 pub const DEFAULT_COMMIT_PATTERN: &str =
