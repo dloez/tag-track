@@ -1,5 +1,5 @@
 # Tag Track
-Tag track is a version bump calculator and tracker that uses git tags with semantic versions and conventional commits to calculate the required bump.
+Tag track is a version bump calculator and tracker that uses git tags with (semantic versions)[https://semver.org] and (conventional commits)[https://www.conventionalcommits.org/en/v1.0.0] to calculate the required bump.
 Tag track has been designed with the following key points:
 - Language agnostic. By using git tags to get the current version Tag track does not require any language integration. All projects that uses git can use Tag track.
 - Usable in CI environments. Tag track can rely in other sources to get the git history information required to work, such as the usage of REST API like the one provided by GitHub. This makes Tag track work even in environments where the git history is partially available like in CI environments.
@@ -25,8 +25,8 @@ This will use the latest closest tag and the commit messages between that tag an
 ### Configuration
 Additionally, you can create a `track.yaml` or `track.yml` file to configure:
 
-- Tag format. Use the `tag_pattern` field to specify a Regex pattern to get the version from the tag name. The Regex pattern should capture in the first group the version. For example, to get the version from a tag named `v1.0.0` use the pattern `v(.*)`. If not `tag_pattern` is specified, the Regex pattern that will be used is `(.*)`, which treats the whole tag name as the version.
-- Commit pattern. Use the `commit_pattern` field to specify a Regex pattern to get the commit fields specified in the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0). The pattern shuold contain [naming capturing groups](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Named_capturing_group) for the fields `type`, `scope`, `breaking`, and `description`. The default pattern is `^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)`, this pattern tries to follow the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0/#specification) as close **and simple** as possible while allowing to use custom types.
+- Tag format. Use the `tag_pattern` field to specify a Regex pattern to get the version from the tag name. The pattern should contain naming capturing groups to capture the required fields. Read more about the required groups for this field in the (Naming capturing groups section)[#-Naming-capturing-groups]. The default pattern is `(?<version>.*)`.
+- Commit pattern. Use the `commit_pattern` field to specify a Regex pattern to get the commit fields specified in the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0). The pattern should contain naming capturing groups to capture the required fields. Read more about the required groups for this field in the [Naming capturing groups section](#-Naming-capturing-groups). Read more about the required groups for this field in the [Naming capturing groups section](#-Naming-capturing-groups). The default pattern is `^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$`, this pattern tries to follow the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0/#specification) as close **and simple** as possible while allowing to use custom types.
 - Version bump rules. Use the `bump_rules` field to specify the rules used to calculate the version bump. If a rule condition is missing, that condition will not be evaluated. Each rule has the following fields:
   * `bump`: Version section to bump. Possible values are `major`, `minor`, and `patch`. Example: `bump: major` - will increase the `major` section of the semantic version if all rule conditions pass.
   * `types`: Condition - List of commit types. An `OR` operation will be used between list types. Example: `types: [feat, fix]` - will pass the condition if the commit type is `feat` or `fix`.
@@ -41,10 +41,10 @@ bump_rules:
     types: [feat]
     if_breaking_type: true
 ```
-These are the default values that Tag Track uses for the different configuration fields:
+Example with the default valus for all configuration fields:
 ```yaml
-tag_pattern: '(.*)'
-bump_rules:
+tag_pattern: '(?<version>.*)'
+bump_rules: '^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$'
     - bump: patch
       types: [fix, style]
     - bump: minor
@@ -54,15 +54,26 @@ bump_rules:
       if_breaking_description: true
 ```
 
+## Naming capturing groups
+Tag track uses [naming capturing groups](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Named_capturing_group) to get the required information from tags and commits. The naming capturing groups allows the user to define custom patterns (even with different field ordering) and still get the required information. These are the naming capturing groups used by Tag track:
+- `tag_pattern`:
+  * `version`: captures the version that should follow the [semantic versioning 2.0 specfification](https://semver.org). This group is required.
+- `commit_pattern`: The following groups corresponds to the different fields in specified in the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0):
+  * `type`: captures the commit type. This group is required.
+  * `scope`: captures the commit scope.
+  * `breaking`: captures the breaking change indicator.
+  * `description`: captures the commit description. This group is required.
+
 ## Project stability and current status
 Currently, Tag track has a high work-in-progress status, thus we are marking releases as pre-releases. There will be API changes and non-backward compatibility changes during this phase. Here is a list of features and improvements that we want to make before the release of Tag track `1.0.0`:
 
 - [ ] Custom GitHub actions with improved API to use inside GitHub actions jobs.
 - [ ] More remote sources such as GitLab, Gitea, etc.
 - [x] Custom rules to calculate version bumps based on conventional commit messages.
-- [x] Support multiple tag formats. Currently only tags that follow the [semantic versioning 2.0](https://semver.org/) can be parsed.
-- [ ] Support conventional commits message scopes and use the scopes to differentiate between different applications with different versions. This is our attempt to support monorepos.
-- [ ] Improved usage of the git history when using remote sources. Currently if the argument `--create-tag` is not used with the use of a remote source like GitHub REST API, the git history is still required, which does not have sense.
+- [x] Support multiple tag formats. Currently only tags that follow the [semantic versioning 2.0](https://semver.org) can be parsed.
+- [x] Support multiple commit formats.
+- [ ] Use the commit scope to differentiate between different applications with different versions. This is our attempt to support monorepos.
+- [ ] Improved usage of the git history when using remote sources.
 - [ ] Improved error handling and user input control.
 
 After the release of the version `1.0.0` we aim to not introduce any non-backward compatibility changes.
