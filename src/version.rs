@@ -190,9 +190,13 @@ struct CommitDetails {
     description: String,
 }
 
+/// Regex field name for the type of the commit.
 const TYPE_FIELD: &str = "type";
+/// Regex field name for the scope of the commit.
 const SCOPE_FIELD: &str = "scope";
+/// Regex field name for the breaking change indicator of the commit.
 const BREAKING_FIELD: &str = "breaking";
+/// Regex field name for the description of the commit.
 const DESCRIPTION_FIELD: &str = "description";
 
 /// Extracts the commit details from a commit message.

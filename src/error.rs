@@ -5,7 +5,7 @@
 use std::{env::VarError, fmt};
 
 /// Describes what kind of errors the application can return.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ErrorKind {
     /// Unexpected error obtained while calling a command.
     GenericCommandFailed,

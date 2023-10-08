@@ -250,6 +250,9 @@ fn print_error(error: error::Error, inputs: &Args, output_format: &OutputFormat)
     }
 }
 
+/// Regex field name for the version inside a tag.
+const VERSION_FIELD: &str = "version";
+
 /// Returns the version found in the given tag that matches the given pattern.
 ///
 /// # Arguments
@@ -289,7 +292,7 @@ fn parse_tag(tag_pattern: String, tag: &String) -> Result<Version, Error> {
             ))
         }
     };
-    let matched_version = match captures.get(1) {
+    let matched_version = match captures.name(VERSION_FIELD) {
         Some(version) => version.as_str().to_owned(),
         None => {
             return Err(Error::new(
@@ -308,5 +311,34 @@ fn parse_tag(tag_pattern: String, tag: &String) -> Result<Version, Error> {
     match Version::parse(matched_version.as_str()) {
         Ok(version) => Ok(version),
         Err(error) => Err(Error::from(error)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tag_can_be_parsed() {
+        let tag_pattern = r"v(?P<version>.*)";
+        let tag = "v1.2.3".to_owned();
+        let version = parse_tag(tag_pattern.to_owned(), &tag).unwrap();
+        assert_eq!(version.to_string(), "1.2.3");
+    }
+
+    #[test]
+    fn parse_tag_invalid_pattern() {
+        let tag_pattern = r"v(?P<version>\d+\.\d+\.\d+";
+        let tag = "v1.2.3".to_owned();
+        let error = parse_tag(tag_pattern.to_owned(), &tag).unwrap_err();
+        assert_eq!(error.kind, ErrorKind::InvalidTagPattern);
+    }
+
+    #[test]
+    fn parse_tag_no_version() {
+        let tag_pattern = r"v(?P<version>\d+\.\d+\.\d+)";
+        let tag = "v1.2".to_owned();
+        let error = parse_tag(tag_pattern.to_owned(), &tag).unwrap_err();
+        assert_eq!(error.kind, ErrorKind::NoVersionInTag);
     }
 }
