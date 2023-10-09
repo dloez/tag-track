@@ -2,7 +2,9 @@ name: 'Tag Track'
 description: 'Calculate semantic version bump based on conventional commits'
 author: 'David Lopez <davidlopez.hellin@outlook.com>'
 runs:
+  env:
+    ACTION_REF: ${{ github.action_ref }}
   using: composite
   steps:
-    - run: echo ${{ github.action_ref }}
+    - run: echo ${{ env.ACTION_REF }}
       shell: bash
