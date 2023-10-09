@@ -1,0 +1,10 @@
+name: Research creation of custom GitHub action
+on:
+  push:
+    branches:
+      - github-action-research
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dloez/tag-track@github-action-research
