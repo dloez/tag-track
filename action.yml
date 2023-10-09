@@ -4,5 +4,5 @@ author: 'David Lopez <davidlopez.hellin@outlook.com>'
 runs:
   using: composite
   steps:
-    - run: echo "${{ github.action-ref }}"
+    - run: echo "${{ github.action_ref }}"
       shell: bash
