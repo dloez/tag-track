@@ -1,9 +1,6 @@
 import * as core from "@actions/core"
+import * as github from "@actions/github"
 
-const actionName = process.env.GITHUB_ACTION || ""
-const actionPath = process.env.GITHUB_ACTION_PATH || ""
-const actionRepository = process.env.GITHUB_ACTION_REPOSITORY || ""
+const context = github.context
 
-core.debug(actionName)
-core.debug(actionPath)
-core.debug(actionRepository)
+core.debug(context.action)
