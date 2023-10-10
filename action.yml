@@ -20,6 +20,9 @@ inputs:
   compile:
     description: Instead of downloading the binary, compile it from source.
     default: false
+  useCache:
+    description: Save binary in cache to avoid downloading or compiling it every time.
+    default: false
 outputs:
   tag-created:
     description: True if a new tag was created.
@@ -55,33 +58,53 @@ runs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: 1.71.0
-    - name: Checkout Tag Trac
+    - name: Checkout Tag Track
       if: ${{ inputs.compile == 'true' }}
       uses: actions/checkout@v4
       with:
         repository: dloez/tag-track
         ref: ${{ steps.action-ref-generator.outputs.action-ref }}
         path: tag-track-repo
+    - name: Generate compile cache key
+      if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' }}
+      id: gen-compile-cache-key
+      shell: bash
+      run: echo "compile-cache-key=tag_track-compile-${{ hashFiles('tag-track-repo/**.rs', 'tag-track-repo/.cargo/**', 'tag-track-repo/Cargo*') }}" >> $GITHUB_OUTPUT
+    - name: Restore cache
+      if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' }}
+      id: compile-cache-restore
+      uses: actions/cache/restore@v3
+      with:
+        path: tag-track-bin
+        key: ${{ steps.gen-compile-cache-key.outputs.compile-cache-key }}
     - name: Compile Tag Track
-      if: ${{ inputs.compile == 'true' }}
+      if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' && steps.compile-cache-restore.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         cd tag-track-repo
         cargo build --release
-        mv target/release/tag-track ..
+        mkdir -p ../tag-track-bin
+        mv target/release/tag-track ../tag-track-bin/tag-track
         rm -rf tag-track-repo
+    - name: Save cache
+      if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' && steps.compile-cache-restore.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v3
+      with:
+        path: tag-track-bin
+        key: ${{ steps.gen-compile-cache-key.outputs.compile-cache-key }}
     - name: Download Tag Track
       if: ${{ inputs.compile == 'false' }}
       shell: bash
       run: |
         curl https://raw.githubusercontent.com/dloez/tag-track/${{ steps.action-ref-generator.outputs.action-ref }}/install.sh | sh -s 0.8.0
-        mv $HOME/.tag-track/bin/tag-track .
+        mkdir -p tag-track-bin
+        mv $HOME/.tag-track/bin/tag-track ./tag-track-bin/tag-track
     - name: Calculate version bump
       id: tag-track-runner
       shell: bash
       run: |
         set +e
-        command="./tag-track --output-format json"
+        command="./tag-track-bin/tag-track --output-format json"
         if [ -n "${{ inputs.github-token }}" ]; then
           command="$command --github-token ${{ inputs.github-token }}"
         fi

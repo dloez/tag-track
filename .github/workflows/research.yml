@@ -15,3 +15,4 @@ jobs:
       - uses: dloez/tag-track@github-action-research
         with:
           compile: true
+          useCache: true
