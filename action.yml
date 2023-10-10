@@ -5,6 +5,8 @@ runs:
   using: composite
   steps:
     - name: Download Tag Track
+      shell: bash
       run: curl https://raw.githubusercontent.com/dloez/tag-track/0.8.0/install.sh | sh -s 0.8.0
     - name: Calculate version bump
+      shell: bash
       run: $HOME/.tag-track/tag-track/bin/tag-track --github-repo dloez/tag-track
