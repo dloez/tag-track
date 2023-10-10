@@ -18,9 +18,9 @@ inputs:
     description: Commit SHA from where the version bump will be calculated, defaults to the commit that triggers the action.
     required: false
 outputs:
-  created-tag:
+  tag-created:
     description: True if a new tag was created.
-    value: ${{ steps.tag-track-runner.outputs.created-tag }}
+    value: ${{ steps.tag-track-runner.outputs.tag-created }}
   old-version:
     description: Old version before calculating the version bump.
     value: ${{ steps.tag-track-runner.outputs.old-version }}
@@ -61,7 +61,7 @@ runs:
         else
           tag_track_output="$($HOME/.tag-track/bin/tag-track --github-repo $GITHUB_REPOSITORY --output-format json)"
         fi
-        echo "created-tag=$(echo $tag_track_output | jq -r '.created_tag')" >> $GITHUB_OUTPUT
+        echo "tag-created=$(echo $tag_track_output | jq -r '.tag_created')" >> $GITHUB_OUTPUT
         echo "old-version=$(echo $tag_track_output | jq -r '.old_version')" >> $GITHUB_OUTPUT
         echo "new-version=$(echo $tag_track_output | jq -r '.new_version')" >> $GITHUB_OUTPUT
         echo "error=$(echo $tag_track_output | jq -r '.error')" >> $GITHUB_OUTPUT

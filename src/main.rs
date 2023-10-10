@@ -46,10 +46,15 @@ struct Args {
 /// Type for storing the required data that needs to be printed in the terminal in different formats.
 #[derive(Serialize, Debug)]
 struct Output<'a> {
+    /// User inputted CLI arguments.
     inputs: &'a Args,
-    created_tag: bool,
+    /// If a new tag was created.
+    tag_created: bool,
+    /// Old version before bumping.
     old_version: String,
+    /// New version after bumping.
     new_version: String,
+    /// Error message if any.
     error: String,
 }
 
@@ -58,7 +63,7 @@ impl<'a> Output<'a> {
     fn new(inputs: &'a Args) -> Self {
         Self {
             inputs,
-            created_tag: false,
+            tag_created: false,
             old_version: "".to_owned(),
             new_version: "".to_owned(),
             error: "".to_owned(),
@@ -209,7 +214,7 @@ fn main() {
             exit(1);
         }
         Ok(_) => {
-            output.created_tag = true;
+            output.tag_created = true;
             match output_format {
                 OutputFormat::Text => println!("tag '{}' created!", version),
                 OutputFormat::Json => {
