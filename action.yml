@@ -3,18 +3,33 @@ description: Calculate semantic version bump based on conventional commits
 author: David Lopez <davidlopez.hellin@outlook.com>
 inputs:
   create-tag:
-    description: Create a new tag with bumped version, if true, the tag will also be pushed.
-    required: false
+    description: Create a new tag with bumped version.
+    default: false
+  push-tag:
+    description: Push the new tag to the repository if `create-tag` is used.
     default: false
   github-repo:
     description: Github repository in the format owner/repo, defaults to the repository that triggers the action.
     required: false
   github-token:
-    description: Github token to authorize requests to GitHub REST API. Can cause rate limit to be increased. Required if `create-tag` is used.
+    description: Github token to authorize requests to GitHub REST API. Can cause rate limit to be increased.
     required: false
   commit-sha:
     description: Commit SHA from where the version bump will be calculated, defaults to the commit that triggers the action.
     required: false
+outputs:
+  created-tag:
+    description: True if a new tag was created.
+    value: ${{ steps.tag-track-runner.outputs.created-tag }}
+  old-version:
+    description: Old version before calculating the version bump.
+    value: ${{ steps.tag-track-runner.outputs.old-version }}
+  new-version:
+    description: New version after calculating the version bump.
+    value: ${{ steps.tag-track-runner.outputs.new-version }}
+  error:
+    description: Error message if something went wrong.
+    value: ${{ steps.tag-track-runner.outputs.error }}
 runs:
   using: composite
   steps:
@@ -44,7 +59,7 @@ runs:
         if [ -n "${{ inputs.github-token }}" ]; then
           tag_track_output="$($HOME/.tag-track/bin/tag-track --github-repo $GITHUB_REPOSITORY --output-format json --github-token ${{ inputs.github-token }})"
         else
-          tag_track_output="$($HOME/.tag-track/bin/tag-track --github-repo asd --output-format json)"
+          tag_track_output="$($HOME/.tag-track/bin/tag-track --github-repo $GITHUB_REPOSITORY --output-format json)"
         fi
         echo "created-tag=$(echo $tag_track_output | jq -r '.created_tag')" >> $GITHUB_OUTPUT
         echo "old-version=$(echo $tag_track_output | jq -r '.old_version')" >> $GITHUB_OUTPUT
@@ -54,10 +69,8 @@ runs:
       shell: bash
       if: ${{ steps.tag-track-runner.outputs.error }}
       run: echo ::error::${{ steps.tag-track-runner.outputs.error }} && exit 1
-    - name: Print tag-track output
+    - name: Push tag
       shell: bash
+      if: ${{ steps.tag-track-runner.outputs.created-tag && inputs.push-tag }}
       run: |
-        echo ${{ steps.tag-track-runner.outputs.created-tag }}
-        echo ${{ steps.tag-track-runner.outputs.old-version }}
-        echo ${{ steps.tag-track-runner.outputs.new-version }}
-        echo ${{ steps.tag-track-runner.outputs.error }}
+        git push origin --tags
