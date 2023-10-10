@@ -71,7 +71,7 @@ runs:
         if [ -n "${{ inputs.create-tag }}" ]; then
           command="$command --create-tag"
         fi
-        echo "::debug::$command"
+        echo "::debug::Running command $command"
         tag_track_output="$(eval $command)"
         echo "tag-created=$(echo $tag_track_output | jq -r '.tag_created')" >> $GITHUB_OUTPUT
         echo "old-version=$(echo $tag_track_output | jq -r '.old_version')" >> $GITHUB_OUTPUT

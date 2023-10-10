@@ -87,7 +87,7 @@ impl Error {
     /// * `message` - Error message or description.
     ///
     pub fn new(kind: ErrorKind, message: Option<&str>) -> Self {
-        let message = message.unwrap_or("");
+        let message = message.unwrap_or("").replace("\n", " # ");
         Self {
             kind,
             message: message.to_owned(),
@@ -109,7 +109,7 @@ impl From<VarError> for Error {
     fn from(error: VarError) -> Self {
         Self {
             kind: ErrorKind::Other,
-            message: error.to_string(),
+            message: error.to_string().replace("\n", " # "),
         }
     }
 }
@@ -118,7 +118,7 @@ impl From<semver::Error> for Error {
     fn from(error: semver::Error) -> Self {
         Self {
             kind: ErrorKind::Other,
-            message: error.to_string(),
+            message: error.to_string().replace("\n", " # "),
         }
     }
 }
@@ -127,7 +127,7 @@ impl From<std::io::Error> for Error {
     fn from(error: std::io::Error) -> Self {
         Self {
             kind: ErrorKind::Other,
-            message: error.to_string(),
+            message: error.to_string().replace("\n", " # "),
         }
     }
 }
@@ -136,7 +136,7 @@ impl From<serde_yaml::Error> for Error {
     fn from(error: serde_yaml::Error) -> Self {
         Self {
             kind: ErrorKind::Other,
-            message: error.to_string(),
+            message: error.to_string().replace("\n", " # "),
         }
     }
 }
@@ -145,7 +145,7 @@ impl From<regex::Error> for Error {
     fn from(error: regex::Error) -> Self {
         Self {
             kind: ErrorKind::Other,
-            message: error.to_string(),
+            message: error.to_string().replace("\n", " # "),
         }
     }
 }
