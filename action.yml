@@ -1,6 +1,10 @@
-name: 'Tag Track'
-description: 'Calculate semantic version bump based on conventional commits'
-author: 'David Lopez <davidlopez.hellin@outlook.com>'
+name: Tag Track
+description: Calculate semantic version bump based on conventional commits
+author: David Lopez <davidlopez.hellin@outlook.com>
 runs:
-  using: node20
-  main: dist/index.js
+  using: composite
+  steps:
+    - name: Download Tag Track
+      run: curl https://raw.githubusercontent.com/dloez/tag-track/0.8.0/install.sh | sh -s 0.8.0
+    - name: Calculate version bump
+      run: $HOME/.tag-track/tag-track/bin/tag-track --github-repo dloez/tag-track
