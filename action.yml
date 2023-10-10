@@ -3,7 +3,7 @@ description: Calculate semantic version bump based on conventional commits
 author: David Lopez <davidlopez.hellin@outlook.com>
 inputs:
   create-tag:
-    description: Create new tag with bumped version, if true, the tag will be also pushed.
+    description: Create a new tag with bumped version, if true, the tag will also be pushed.
     required: false
     default: false
   github-repo:
@@ -18,15 +18,46 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Add backslash before each / in the repository name
+      id: repo-backslash
+      shell: bash
+      run: |
+        echo "github-repo=$(echo $GITHUB_REPOSITORY | sed 's/\//\\\//g' )" >> $GITHUB_OUTPUT
+    - name: Get action reference
+      shell: bash
+      id: action-ref-generator
+      run: |
+        echo "action-ref=$(echo $GITHUB_ACTION_PATH | sed "s/.*${{ steps.repo-backslash.outputs.github-repo }}\///" )" >> $GITHUB_OUTPUT
+    # - name: Download Tag Track
+    #   shell: bash
+    #   run: |
+    #     curl https://raw.githubusercontent.com/dloez/tag-track/${{ steps.action-ref-generator.outputs.action-ref }}/install.sh | sh -s ${{ steps.action-ref-generator.outputs.action-ref }}
     - name: Download Tag Track
       shell: bash
-      run: curl https://raw.githubusercontent.com/dloez/tag-track/0.8.0/install.sh | sh -s 0.8.0
+      run: |
+        curl https://raw.githubusercontent.com/dloez/tag-track/${{ steps.action-ref-generator.outputs.action-ref }}/install.sh | sh -s 0.8.0
     - name: Calculate version bump
+      id: tag-track-runner
       shell: bash
-      run: $HOME/.tag-track/bin/tag-track --github-repo $GITHUB_REPOSITORY --output-format json
-    - name: Print all inputs
+      run: |
+        set +e
+        if [ -n "${{ inputs.github-token }}" ]; then
+          tag_track_output="$($HOME/.tag-track/bin/tag-track --github-repo $GITHUB_REPOSITORY --output-format json --github-token ${{ inputs.github-token }})"
+        else
+          tag_track_output="$($HOME/.tag-track/bin/tag-track --github-repo asd --output-format json)"
+        fi
+        echo "created-tag=$(echo $tag_track_output | jq -r '.created_tag')" >> $GITHUB_OUTPUT
+        echo "old-version=$(echo $tag_track_output | jq -r '.old_version')" >> $GITHUB_OUTPUT
+        echo "new-version=$(echo $tag_track_output | jq -r '.new_version')" >> $GITHUB_OUTPUT
+        echo "error=$(echo $tag_track_output | jq -r '.error')" >> $GITHUB_OUTPUT
+    - name: Check tag-track error
       shell: bash
-      run: echo ${{ inputs }}
-    - name: Print env variables
+      if: ${{ steps.tag-track-runner.outputs.error }}
+      run: echo ::error::${{ steps.tag-track-runner.outputs.error }} && exit 1
+    - name: Print tag-track output
       shell: bash
-      run: echo $GITHUB_ACTION_PATH $GITHUB_REPOSITORY
+      run: |
+        echo ${{ steps.tag-track-runner.outputs.created-tag }}
+        echo ${{ steps.tag-track-runner.outputs.old-version }}
+        echo ${{ steps.tag-track-runner.outputs.new-version }}
+        echo ${{ steps.tag-track-runner.outputs.error }}
