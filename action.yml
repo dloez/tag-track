@@ -9,16 +9,12 @@ inputs:
   github-repo:
     description: Github repository in the format owner/repo, defaults to the repository that triggers the action.
     required: false
-    defaults: ${{ github.repository }}
   github-token:
     description: Github token to authorize requests to GitHub REST API. Can cause rate limit to be increased. Required if `create-tag` is used.
     required: false
   commit-sha:
     description: Commit SHA from where the version bump will be calculated, defaults to the commit that triggers the action.
     required: false
-  test:
-    required: false
-    default: ${{ github.action_ref }}
 runs:
   using: composite
   steps:
@@ -31,3 +27,6 @@ runs:
     - name: Print all inputs
       shell: bash
       run: echo ${{ inputs }}
+    - name: Print env variables
+      shell: bash
+      run: echo $GITHUB_ACTION_PATH $GITHUB_REPOSITORY
