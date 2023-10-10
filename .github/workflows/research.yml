@@ -7,4 +7,5 @@ jobs:
   research:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - uses: dloez/tag-track@github-action-research
