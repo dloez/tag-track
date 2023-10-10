@@ -23,7 +23,7 @@ struct Args {
     #[arg(long, default_value = "false", default_missing_value = "true")]
     create_tag: bool,
 
-    /// GitHUb repository identifier (owner/repo_name).
+    /// GitHub repository identifier (owner/repo_name).
     /// If present, this will use GitHub as the source to calculate a version bump.
     #[arg(long)]
     github_repo: Option<String>,
