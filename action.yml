@@ -68,7 +68,7 @@ runs:
         if [ -n "${{ inputs.commit-sha }}" ]; then
           command="$command --commit-sha ${{ inputs.commit-sha }}"
         fi
-        if [ -n "${{ inputs.create-tag }}" ]; then
+        if [ "${{ inputs.create-tag }}" == "true" ]; then
           command="$command --create-tag"
         fi
         echo "::debug::Running command $command"
