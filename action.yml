@@ -17,6 +17,9 @@ inputs:
   commit-sha:
     description: Commit SHA from where the version bump will be calculated, defaults to the commit that triggers the action.
     required: false
+  compile:
+    description: Instead of downloading the binary, compile it from source.
+    default: false
 outputs:
   tag-created:
     description: True if a new tag was created.
@@ -47,16 +50,38 @@ runs:
     #   shell: bash
     #   run: |
     #     curl https://raw.githubusercontent.com/dloez/tag-track/${{ steps.action-ref-generator.outputs.action-ref }}/install.sh | sh -s ${{ steps.action-ref-generator.outputs.action-ref }}
+    - name: Setup rust
+      if: ${{ inputs.compile == 'true' }}
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: 1.71.0
+    - name: Checkout Tag Trac
+      if: ${{ inputs.compile == 'true' }}
+      uses: actions/checkout@v4
+      with:
+        repository: dloez/tag-track
+        ref: ${{ steps.action-ref-generator.outputs.action-ref }}
+        path: tag-track-repo
+    - name: Compile Tag Track
+      if: ${{ inputs.compile == 'true' }}
+      shell: bash
+      run: |
+        cd tag-track-repo
+        cargo build --release
+        mv target/release/tag-track ..
+        rm -rf tag-track-repo
     - name: Download Tag Track
+      if: ${{ inputs.compile == 'false' }}
       shell: bash
       run: |
         curl https://raw.githubusercontent.com/dloez/tag-track/${{ steps.action-ref-generator.outputs.action-ref }}/install.sh | sh -s 0.8.0
+        mv $HOME/.tag-track/bin/tag-track .
     - name: Calculate version bump
       id: tag-track-runner
       shell: bash
       run: |
         set +e
-        command="$HOME/.tag-track/bin/tag-track --output-format json"
+        command="./tag-track --output-format json"
         if [ -n "${{ inputs.github-token }}" ]; then
           command="$command --github-token ${{ inputs.github-token }}"
         fi
