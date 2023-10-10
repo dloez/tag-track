@@ -56,11 +56,23 @@ runs:
       shell: bash
       run: |
         set +e
+        command="$HOME/.tag-track/bin/tag-track --output-format json"
         if [ -n "${{ inputs.github-token }}" ]; then
-          tag_track_output="$($HOME/.tag-track/bin/tag-track --github-repo $GITHUB_REPOSITORY --output-format json --github-token ${{ inputs.github-token }})"
-        else
-          tag_track_output="$($HOME/.tag-track/bin/tag-track --github-repo $GITHUB_REPOSITORY --output-format json)"
+          command="$command --github-token ${{ inputs.github-token }}"
         fi
+        if [ -n "${{ inputs.github-repo }}" ]; then
+          command="$command --github-repo ${{ inputs.github-repo }}"
+        else
+          command="$command --github-repo $GITHUB_REPOSITORY"
+        fi
+        if [ -n "${{ inputs.commit-sha }}" ]; then
+          command="$command --commit-sha ${{ inputs.commit-sha }}"
+        fi
+        if [ -n "${{ inputs.create-tag }}" ]; then
+          command="$command --create-tag"
+        fi
+        echo "::debug::$command"
+        tag_track_output="$(eval $command)"
         echo "tag-created=$(echo $tag_track_output | jq -r '.tag_created')" >> $GITHUB_OUTPUT
         echo "old-version=$(echo $tag_track_output | jq -r '.old_version')" >> $GITHUB_OUTPUT
         echo "new-version=$(echo $tag_track_output | jq -r '.new_version')" >> $GITHUB_OUTPUT
