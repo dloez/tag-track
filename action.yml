@@ -23,7 +23,7 @@ runs:
       run: curl https://raw.githubusercontent.com/dloez/tag-track/0.8.0/install.sh | sh -s 0.8.0
     - name: Calculate version bump
       shell: bash
-      run: $HOME/.tag-track/bin/tag-track --github-repo dloez/tag-track --output-format json
+      run: $HOME/.tag-track/bin/tag-track --github-repo $GITHUB_REPOSITORY --output-format json
     - name: Print all inputs
       shell: bash
       run: echo ${{ inputs }}
