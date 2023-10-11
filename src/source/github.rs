@@ -11,8 +11,8 @@ use crate::source::SourceActions;
 use reqwest;
 use serde::Deserialize;
 
-/// GitHub REST API base URI.
-const GITHUB_BASE_URI: &str = "https://api.github.com/repos";
+/// GitHub REST API base URL.
+pub const GITHUB_API_BASE_URL: &str = "https://api.github.com";
 /// GitHub REST API URI for querying tags. Must be used in combination with `GITHUB_BASE_URI`.
 const GITHUB_TAGS_URI: &str = "/tags";
 /// GitHub REST API URI for querying commits. Must be used in combination with `GITHUB_BASE_URI`.
@@ -40,6 +40,8 @@ pub struct GithubSource {
 
     /// GitHub repository identifier `org/repo-name`, example `dloez/tag-track`.
     repo_id: String,
+    /// GitHub REST API base URL.
+    api_url: String,
     /// GitHub REST API authentication token to authorize requests.
     token: Option<String>,
 }
@@ -51,15 +53,18 @@ impl GithubSource {
     ///
     /// * `repo_id` - GitHub repository identifier in the format `org/repo-name`, example `dloez/tag-track`.
     ///
+    /// * `api_url` - GitHub REST API base URL.
+    ///
     /// * `token` - GitHub REST API authentication token to authorize requests.
     ///
-    pub fn new(repo_id: String, token: Option<String>) -> Self {
+    pub fn new(repo_id: String, api_url: String, token: Option<String>) -> Self {
         Self {
             commits: vec![],
             oldest_closest_tag: "".to_owned(),
             oldest_closest_tag_commit_sha: "".to_owned(),
             remote_fetched: false,
             repo_id,
+            api_url,
             token,
         }
     }
@@ -85,12 +90,12 @@ impl SourceActions for GithubSource {
     /// could not be found.
     ///
     fn fetch_from_commit(&mut self, sha: &str) -> Result<(), Error> {
-        let tags = get_all_tags(&self.repo_id, &self.token);
+        let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
         if tags.is_empty() {
             return Err(Error::new(ErrorKind::MissingGitTags, None));
         }
 
-        let commit_iterator = CommitIterator::new(&self.repo_id, &self.token, sha);
+        let commit_iterator = CommitIterator::new(&self.repo_id, &self.api_url, &self.token, sha);
         for commit in commit_iterator {
             let commit = commit?;
             let tag = find_tag_from_commit_sha(&commit.sha, &tags);
@@ -194,6 +199,7 @@ struct CommitIterator<'a> {
     per_page: u64,
     commits: Vec<GithubCommitDetails>,
     repo_id: &'a String,
+    api_url: &'a String,
     token: &'a Option<String>,
     sha: &'a str,
 
@@ -210,6 +216,7 @@ impl<'a> Iterator for CommitIterator<'a> {
         if self.current_elem == self.max_elem {
             self.commits = match get_commits_from_commit_sha(
                 self.repo_id,
+                self.api_url,
                 self.sha,
                 self.token,
                 &self.page,
@@ -236,12 +243,18 @@ impl<'a> Iterator for CommitIterator<'a> {
 
 impl<'a> CommitIterator<'a> {
     /// Returns a new instance of a `CommitIterator`.
-    fn new(repo_id: &'a String, token: &'a Option<std::string::String>, sha: &'a str) -> Self {
+    fn new(
+        repo_id: &'a String,
+        api_url: &'a String,
+        token: &'a Option<std::string::String>,
+        sha: &'a str,
+    ) -> Self {
         CommitIterator {
             page: 0,
             per_page: DEFAULT_PER_PAGE,
             commits: vec![],
             repo_id,
+            api_url,
             token,
             sha,
             max_elem: 0,
@@ -257,6 +270,8 @@ impl<'a> CommitIterator<'a> {
 ///
 /// * `repo_id` - GitHub repository identifier that will be used to query commits.
 ///
+/// * `api_url` - GitHub REST API base URL.
+///
 /// * `token` - GitHub REST API authentication token. If it is `None`, requests will not be authenticated, if it has
 /// a value, requests will be authenticated.
 ///
@@ -271,6 +286,7 @@ impl<'a> CommitIterator<'a> {
 ///
 fn get_tags(
     repo_id: &String,
+    api_url: &String,
     token: &Option<String>,
     page: &u64,
     per_page: &u64,
@@ -278,8 +294,8 @@ fn get_tags(
     let client = reqwest::blocking::Client::new();
     let mut client = client
         .get(format!(
-            "{}/{}{}?page={}&per_page={}",
-            GITHUB_BASE_URI, repo_id, GITHUB_TAGS_URI, page, per_page
+            "{}/repos/{}{}?page={}&per_page={}",
+            api_url, repo_id, GITHUB_TAGS_URI, page, per_page
         ))
         .header(reqwest::header::USER_AGENT, USER_AGENT);
 
@@ -318,11 +334,27 @@ fn get_tags(
     Ok(tags)
 }
 
-fn get_all_tags(repo_id: &String, token: &Option<String>) -> Vec<GithubTag> {
+/// Obtains all tags from the given repository. If `token` is given, the requests will be authorized.
+///
+/// # Arguments
+///
+/// * `repo_id` - GitHub repository identifier that will be used to query commits.
+///
+/// * `api_url` - GitHub REST API base URL.
+///
+/// * `token` - GitHub REST API authentication token. If it is `None`, requests will not be authenticated, if it has
+/// a value, requests will be authenticated.
+///
+fn get_all_tags(
+    repo_id: &String,
+    api_url: &String,
+    token: &Option<String>,
+) -> Result<Vec<GithubTag>, Error> {
     let mut page: u64 = 0;
     let mut tags: Vec<GithubTag> = vec![];
 
-    while let Ok(t) = get_tags(repo_id, token, &page, &DEFAULT_PER_PAGE) {
+    loop {
+        let t = get_tags(repo_id, api_url, token, &page, &DEFAULT_PER_PAGE)?;
         if t.is_empty() {
             break;
         }
@@ -331,7 +363,8 @@ fn get_all_tags(repo_id: &String, token: &Option<String>) -> Vec<GithubTag> {
         tags.extend(t);
         page += 1;
     }
-    tags
+
+    Ok(tags)
 }
 
 /// Obtains commits from the given `sha` using the GitHub REST API. If `token` is given, the requests will be authorized.
@@ -340,6 +373,8 @@ fn get_all_tags(repo_id: &String, token: &Option<String>) -> Vec<GithubTag> {
 /// # Arguments
 ///
 /// * `repo_id` - GitHub repository identifier that will be used to query commits.
+///
+/// * `api_url` - GitHub REST API base URL.
 ///
 /// * `sha` - SHA from where the commits will be requested.
 ///
@@ -357,6 +392,7 @@ fn get_all_tags(repo_id: &String, token: &Option<String>) -> Vec<GithubTag> {
 ///
 fn get_commits_from_commit_sha(
     repo_id: &String,
+    api_url: &String,
     sha: &str,
     token: &Option<String>,
     page: &u64,
@@ -365,8 +401,8 @@ fn get_commits_from_commit_sha(
     let client = reqwest::blocking::Client::new();
     let mut client = client
         .get(format!(
-            "{}/{}{}?sha={}&page={}&per_page={}",
-            GITHUB_BASE_URI, repo_id, GITHUB_COMMITS_URI, sha, page, per_page
+            "{}/repos/{}{}?sha={}&page={}&per_page={}",
+            api_url, repo_id, GITHUB_COMMITS_URI, sha, page, per_page
         ))
         .header(reqwest::header::USER_AGENT, USER_AGENT);
 

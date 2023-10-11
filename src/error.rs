@@ -19,7 +19,7 @@ pub enum ErrorKind {
     SourceNotFetched,
     /// Error returned by the GitHub REST API.
     GithubRestError,
-    /// Can not find any tags.
+    /// Can not get tags from source.
     MissingGitTags,
     /// Can not find the git oldest closest tag.
     MissingGitOldestClosestTag,
@@ -49,7 +49,7 @@ impl ErrorKind {
             NotGitWorkingTree => "the current directory does not seem to be a git working tree",
             SourceNotFetched => "call `fetch` method before using this property",
             GithubRestError => "error while calling GitHub REST API",
-            MissingGitTags => "there are no tags in source",
+            MissingGitTags => "cannot get tags from source",
             MissingGitOldestClosestTag => "cannot find closest tag",
             InvalidOutputFormat => "the specified output format is not valid",
             InvalidRegexPattern => "the regex pattern is not valid",

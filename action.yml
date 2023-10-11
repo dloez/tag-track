@@ -3,13 +3,16 @@ description: Calculate semantic version bump based on conventional commits
 author: David Lopez <davidlopez.hellin@outlook.com>
 inputs:
   create-tag:
-    description: Create a new tag with bumped version.
+    description: Create a new tag with bumped version, defaults to false.
     default: false
   push-tag:
-    description: Push the new tag to the repository if `create-tag` is used.
+    description: Push the new tag to the repository if `create-tag` is used, defaults to false.
     default: false
   github-repo:
     description: Github repository in the format owner/repo, defaults to the repository that triggers the action.
+    required: false
+  github-api-url:
+    description: Github API URL, defaults to the value of the environment variable `GITHUB_API_URL`.
     required: false
   github-token:
     description: Github token to authorize requests to GitHub REST API. Can cause rate limit to be increased.
@@ -126,6 +129,11 @@ runs:
           command="$command --github-repo ${{ inputs.github-repo }}"
         else
           command="$command --github-repo $GITHUB_REPOSITORY"
+        fi
+        if [ -n "${{ inputs.github-api-url }}" ]; then
+          command="$command --github-api-url ${{ inputs.github-api-url }}"
+        else
+          command="$command --github-api-url $GITHUB_API_URL"
         fi
         if [ -n "${{ inputs.commit-sha }}" ]; then
           command="$command --commit-sha ${{ inputs.commit-sha }}"
