@@ -62,6 +62,8 @@ struct Output<'a> {
     old_version: String,
     /// New version after bumping.
     new_version: String,
+    /// Commits that were skipped during the version bump due to pattern missmatch.
+    skipped_commits: Vec<&'a String>,
     /// Error message if any.
     error: String,
 }
@@ -74,6 +76,7 @@ impl<'a> Output<'a> {
             tag_created: false,
             old_version: "".to_owned(),
             new_version: "".to_owned(),
+            skipped_commits: vec![],
             error: "".to_owned(),
         }
     }
@@ -166,7 +169,7 @@ fn main() {
 
     let mut output = Output::new(&args);
     output.old_version = version.to_string();
-    let increment_kind = match bump_version(
+    let (increment_kind, skipped_commits_sha) = match bump_version(
         &mut version,
         &config.bump_rules,
         commits,
@@ -179,14 +182,19 @@ fn main() {
         }
     };
     output.new_version = version.to_string();
+    output.skipped_commits = skipped_commits_sha;
+
+    if let OutputFormat::Text = output_format {
+        output
+            .skipped_commits
+            .iter()
+            .for_each(|sha| println!("commit '{}' does not match the commit pattern", sha));
+    }
 
     if increment_kind.is_none() {
         match output_format {
             OutputFormat::Text => println!("version bump not required"),
             OutputFormat::Json => {
-                let mut output = Output::new(&args);
-                output.old_version = version.to_string();
-                output.new_version = version.to_string();
                 if let Ok(json_str) = to_string_pretty(&output) {
                     println!("{}", json_str);
                 } else {
