@@ -7,7 +7,7 @@
 
 use crate::error::Error;
 use crate::version::IncrementKind;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File},
     io::Read,
@@ -71,7 +71,7 @@ pub struct ParsedConfig {
 }
 
 /// Type to represent the rules for bumping the version number.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BumpRule {
     /// Which version field should be bumped if the rule triggers.
     pub bump: IncrementKind,
@@ -90,7 +90,7 @@ pub struct BumpRule {
 }
 
 /// Type used to add default fields to the missing configuration field fields.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Config {
     /// The tag pattern used to extract the version number from Git tags.
     pub tag_pattern: String,

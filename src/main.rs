@@ -56,6 +56,8 @@ struct Args {
 struct Output<'a> {
     /// User inputted CLI arguments.
     inputs: &'a Args,
+    /// Configuration that was used.
+    config: Option<&'a Config>,
     /// If a new tag was created.
     tag_created: bool,
     /// Old version before bumping.
@@ -70,9 +72,10 @@ struct Output<'a> {
 
 impl<'a> Output<'a> {
     /// Creates a new `Output` instance with the given `inputs`.
-    fn new(inputs: &'a Args) -> Self {
+    fn new(inputs: &'a Args, config: Option<&'a Config>) -> Self {
         Self {
             inputs,
+            config,
             tag_created: false,
             old_version: "".to_owned(),
             new_version: "".to_owned(),
@@ -105,7 +108,7 @@ fn main() {
         Some(config_file_path) => match parse_config_file(config_file_path) {
             Ok(config) => config,
             Err(error) => {
-                print_error(error, &args, &output_format);
+                print_error(error, &args, &output_format, None);
                 exit(1);
             }
         },
@@ -113,7 +116,7 @@ fn main() {
     };
 
     if let Err(error) = git::verify_git() {
-        print_error(error, &args, &output_format);
+        print_error(error, &args, &output_format, Some(&config));
         exit(1);
     }
 
@@ -122,7 +125,7 @@ fn main() {
         None => match git::get_current_commit_sha() {
             Ok(current_commit) => current_commit,
             Err(error) => {
-                print_error(error, &args, &output_format);
+                print_error(error, &args, &output_format, Some(&config));
                 exit(1);
             }
         },
@@ -139,7 +142,7 @@ fn main() {
     };
 
     if let Err(error) = source.fetch_from_commit(&current_commit_sha) {
-        print_error(error, &args, &output_format);
+        print_error(error, &args, &output_format, Some(&config));
         exit(1);
     };
 
@@ -147,14 +150,14 @@ fn main() {
     let closest_tag = match source.get_closest_oldest_tag() {
         Ok(tag) => tag,
         Err(error) => {
-            print_error(error, &args, &output_format);
+            print_error(error, &args, &output_format, Some(&config));
             exit(1);
         }
     };
-    let mut version = match parse_tag(config.tag_pattern, closest_tag) {
+    let mut version = match parse_tag(&config.tag_pattern, closest_tag) {
         Ok(version) => version,
         Err(error) => {
-            print_error(error, &args, &output_format);
+            print_error(error, &args, &output_format, Some(&config));
             exit(1);
         }
     };
@@ -162,12 +165,12 @@ fn main() {
     let commits = match source.get_commits() {
         Ok(commits) => commits,
         Err(error) => {
-            print_error(error, &args, &output_format);
+            print_error(error, &args, &output_format, Some(&config));
             exit(1);
         }
     };
 
-    let mut output = Output::new(&args);
+    let mut output = Output::new(&args, Some(&config));
     output.old_version = version.to_string();
     let (increment_kind, skipped_commits_sha) = match bump_version(
         &mut version,
@@ -177,7 +180,7 @@ fn main() {
     ) {
         Ok(increment_kind) => increment_kind,
         Err(error) => {
-            print_error(error, &args, &output_format);
+            print_error(error, &args, &output_format, Some(&config));
             exit(1);
         }
     };
@@ -227,7 +230,7 @@ fn main() {
     let result = git::create_tag(&version.to_string(), &tag_message);
     match result {
         Err(error) => {
-            print_error(error, &args, &output_format);
+            print_error(error, &args, &output_format, Some(&config));
             exit(1);
         }
         Ok(_) => {
@@ -257,11 +260,16 @@ fn main() {
 /// * `output_format` - Output format that will be used for printing the result. The output
 /// will be prettified before being printed.
 ///
-fn print_error(error: error::Error, inputs: &Args, output_format: &OutputFormat) {
+fn print_error(
+    error: error::Error,
+    inputs: &Args,
+    output_format: &OutputFormat,
+    config: Option<&Config>,
+) {
     match output_format {
         OutputFormat::Text => println!("{}", error),
         OutputFormat::Json => {
-            let mut output = Output::new(inputs);
+            let mut output = Output::new(inputs, config);
             output.error = format!("{}", error);
             if let Ok(json_str) = to_string_pretty(&output) {
                 println!("{}", json_str);
@@ -289,7 +297,7 @@ const VERSION_FIELD: &str = "version";
 ///
 /// Returns `error::Error` with the type of `error::ErrorKind::NoVersionInTag` if the given tag does not contain a version.
 ///
-fn parse_tag(tag_pattern: String, tag: &String) -> Result<Version, Error> {
+fn parse_tag(tag_pattern: &String, tag: &String) -> Result<Version, Error> {
     let re = match Regex::new(tag_pattern.as_str()) {
         Ok(re) => re,
         Err(error) => {
@@ -356,25 +364,25 @@ mod tests {
 
     #[test]
     fn tag_can_be_parsed() {
-        let tag_pattern = r"v(?P<version>.*)";
+        let tag_pattern = r"v(?P<version>.*)".to_string();
         let tag = "v1.2.3".to_owned();
-        let version = parse_tag(tag_pattern.to_owned(), &tag).unwrap();
+        let version = parse_tag(&tag_pattern, &tag).unwrap();
         assert_eq!(version.to_string(), "1.2.3");
     }
 
     #[test]
     fn parse_tag_invalid_pattern() {
-        let tag_pattern = r"v(?P<version>\d+\.\d+\.\d+";
+        let tag_pattern = r"v(?P<version>\d+\.\d+\.\d+".to_string();
         let tag = "v1.2.3".to_owned();
-        let error = parse_tag(tag_pattern.to_owned(), &tag).unwrap_err();
+        let error = parse_tag(&tag_pattern, &tag).unwrap_err();
         assert_eq!(error.kind, ErrorKind::InvalidTagPattern);
     }
 
     #[test]
     fn parse_tag_no_version() {
-        let tag_pattern = r"v(?P<version>\d+\.\d+\.\d+)";
+        let tag_pattern = r"v(?P<version>\d+\.\d+\.\d+)".to_string();
         let tag = "v1.2".to_owned();
-        let error = parse_tag(tag_pattern.to_owned(), &tag).unwrap_err();
+        let error = parse_tag(&tag_pattern, &tag).unwrap_err();
         assert_eq!(error.kind, ErrorKind::NoVersionInTag);
     }
 }
