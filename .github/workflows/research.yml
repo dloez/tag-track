@@ -14,5 +14,5 @@ jobs:
           git config user.email github-actions@github.com
       - uses: dloez/tag-track@github-action-research
         with:
-          compile: false
+          compile: true
           useCache: true

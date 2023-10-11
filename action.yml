@@ -49,10 +49,6 @@ runs:
       id: action-ref-generator
       run: |
         echo "action-ref=$(echo $GITHUB_ACTION_PATH | sed "s/.*${{ steps.repo-backslash.outputs.github-repo }}\///" )" >> $GITHUB_OUTPUT
-    # - name: Download Tag Track
-    #   shell: bash
-    #   run: |
-    #     curl https://raw.githubusercontent.com/dloez/tag-track/${{ steps.action-ref-generator.outputs.action-ref }}/install.sh | sh -s ${{ steps.action-ref-generator.outputs.action-ref }}
     - name: Checkout Tag Track
       if: ${{ inputs.compile == 'true' }}
       uses: actions/checkout@v4
@@ -108,7 +104,7 @@ runs:
       if: ${{ inputs.compile == 'false' && steps.download-cache-restore.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
-        curl https://raw.githubusercontent.com/dloez/tag-track/${{ steps.action-ref-generator.outputs.action-ref }}/install.sh | sh -s 0.8.0
+        curl https://raw.githubusercontent.com/dloez/tag-track/${{ steps.action-ref-generator.outputs.action-ref }}/install.sh | sh -s ${{ steps.action-ref-generator.outputs.action-ref }}
         mkdir -p tag-track-bin
         mv $HOME/.tag-track/bin/tag-track ./tag-track-bin/tag-track
     - name: Save cache
