@@ -53,11 +53,6 @@ runs:
     #   shell: bash
     #   run: |
     #     curl https://raw.githubusercontent.com/dloez/tag-track/${{ steps.action-ref-generator.outputs.action-ref }}/install.sh | sh -s ${{ steps.action-ref-generator.outputs.action-ref }}
-    - name: Setup rust
-      if: ${{ inputs.compile == 'true' }}
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: 1.71.0
     - name: Checkout Tag Track
       if: ${{ inputs.compile == 'true' }}
       uses: actions/checkout@v4
@@ -77,8 +72,13 @@ runs:
       with:
         path: tag-track-bin
         key: ${{ steps.gen-compile-cache-key.outputs.compile-cache-key }}
+    - name: Setup rust
+      if: ${{ inputs.compile == 'true' && steps.compile-cache-restore.outputs.cache-hit != 'true' }}
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: 1.71.0
     - name: Compile Tag Track
-      if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' && steps.compile-cache-restore.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.compile == 'true' && steps.compile-cache-restore.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         cd tag-track-repo
