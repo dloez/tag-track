@@ -45,22 +45,30 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Add backslash before each / in the repository name
-      id: repo-backslash
+    - name: Get action reference - Linux/MacOS
       shell: bash
+      if: ${{ runner.os != 'windows' }}
       run: |
-        echo "github-repo=$(echo $GITHUB_REPOSITORY | sed 's/\//\\\//g' )" >> $GITHUB_OUTPUT
-    - name: Get action reference
+        github_action_path=$GITHUB_ACTION_PATH
+        pattern=".*${GITHUB_REPOSITORY}/"
+        echo "::debug::Action path - ${github_action_path}"
+        echo "::debug::Pattern - ${pattern}"
+        echo "ACTION_REF=$(sed \"s|$pattern||g\" <<< $github_action_path)" >> $GITHUB_ENV
+    - name: Get action reference - Windows
       shell: bash
-      id: action-ref-generator
+      if: ${{ runner.os == 'windows' }}
       run: |
-        echo "action-ref=$(echo $GITHUB_ACTION_PATH | sed "s/.*${{ steps.repo-backslash.outputs.github-repo }}\///" )" >> $GITHUB_OUTPUT
+        github_action_path=$(sed 's|\\|/|g' <<< $GITHUB_ACTION_PATH)
+        pattern=".*${GITHUB_REPOSITORY}/"
+        echo "::debug::Action path - ${github_action_path}"
+        echo "::debug::Pattern - ${pattern}"
+        echo "ACTION_REF=$(sed \"s|$pattern||g\" <<< $github_action_path)" >> $GITHUB_ENV
     - name: Checkout Tag Track
       if: ${{ inputs.compile == 'true' }}
       uses: actions/checkout@v4
       with:
         repository: dloez/tag-track
-        ref: ${{ steps.action-ref-generator.outputs.action-ref }}
+        ref: ${{ env.ACTION_REF }}
         path: tag-track-repo
     - name: Generate compile cache key
       if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' }}
@@ -98,7 +106,7 @@ runs:
       if: ${{ inputs.compile == 'false' && inputs.useCache == 'true' }}
       id: gen-download-cache-key
       shell: bash
-      run: echo "download-cache-key=tag-track_download_${RUNNER_OS}_${RUNNER_ARCH}_${{ steps.action-ref-generator.outputs.action-ref }}" >> $GITHUB_OUTPUT
+      run: echo "download-cache-key=tag-track_download_${RUNNER_OS}_${RUNNER_ARCH}_${{ env.ACTION_REF }}" >> $GITHUB_OUTPUT
     - name: Restore download cache
       if: ${{ inputs.compile == 'false' && inputs.useCache == 'true' }}
       id: download-cache-restore
@@ -110,7 +118,7 @@ runs:
       if: ${{ inputs.compile == 'false' && steps.download-cache-restore.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
-        curl https://raw.githubusercontent.com/dloez/tag-track/${{ steps.action-ref-generator.outputs.action-ref }}/install.sh | sh -s ${{ steps.action-ref-generator.outputs.action-ref }}
+        curl https://raw.githubusercontent.com/dloez/tag-track/${{ env.ACTION_REF }}/install.sh | sh -s ${{ env.ACTION_REF }}
         mkdir -p tag-track-bin
         mv $HOME/.tag-track/bin/tag-track ./tag-track-bin/tag-track
     - name: Save cache
