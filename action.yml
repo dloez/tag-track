@@ -63,7 +63,7 @@ runs:
       if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' }}
       id: gen-compile-cache-key
       shell: bash
-      run: echo "compile-cache-key=tag_track-compile-${{ hashFiles('tag-track-repo/**.rs', 'tag-track-repo/.cargo/**', 'tag-track-repo/Cargo*') }}" >> $GITHUB_OUTPUT
+      run: echo "compile-cache-key=tag_track-compile-${{ hashFiles('tag-track-repo/**/*.rs', 'tag-track-repo/.cargo/**', 'tag-track-repo/Cargo*') }}" >> $GITHUB_OUTPUT
     - name: Restore compile cache
       if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' }}
       id: compile-cache-restore
