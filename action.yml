@@ -36,6 +36,9 @@ outputs:
   new-version:
     description: New version after calculating the version bump.
     value: ${{ steps.tag-track-runner.outputs.new-version }}
+  skipped-commits:
+    description: List of commits that were skipped because they don't match the commit pattern.
+    value: ${{ steps.tag-track-runner.outputs.skipped-commits }}
   error:
     description: Error message if something went wrong.
     value: ${{ steps.tag-track-runner.outputs.error }}
@@ -146,7 +149,15 @@ runs:
         echo "tag-created=$(echo $tag_track_output | jq -r '.tag_created')" >> $GITHUB_OUTPUT
         echo "old-version=$(echo $tag_track_output | jq -r '.old_version')" >> $GITHUB_OUTPUT
         echo "new-version=$(echo $tag_track_output | jq -r '.new_version')" >> $GITHUB_OUTPUT
+        echo "skipped-commits=$(echo $tag_track_output | jq -cr '.skipped_commits')" >> $GITHUB_OUTPUT
         echo "error=$(echo $tag_track_output | jq -r '.error')" >> $GITHUB_OUTPUT
+    - name: Print skipped commits
+      if: ${{ steps.tag-track-runner.outputs.skipped-commits }}
+      shell: bash
+      run: |
+        for element in $(echo '${{ steps.tag-track-runner.outputs.skipped-commits }}' | jq -r '.[]'); do
+          echo "::warning::Commit '$element' does not match the commit pattern"
+        done
     - name: Check tag-track error
       shell: bash
       if: ${{ steps.tag-track-runner.outputs.error }}
