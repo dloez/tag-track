@@ -23,6 +23,14 @@ struct Args {
     #[arg(long, default_value = "false", default_missing_value = "true")]
     create_tag: bool,
 
+    /// GitHub URL. Defaults to 'https://api.github.com'.
+    #[arg(
+        long,
+        default_value = source::github::GITHUB_API_BASE_URL,
+        default_missing_value = source::github::GITHUB_API_BASE_URL
+    )]
+    github_api_url: String,
+
     /// GitHub repository identifier (owner/repo_name).
     /// If present, this will use GitHub as the source to calculate a version bump.
     #[arg(long)]
@@ -121,6 +129,7 @@ fn main() {
     let mut source: source::SourceKind = match args.github_repo.clone() {
         Some(repo) => source::SourceKind::Github(source::github::GithubSource::new(
             repo,
+            validate_trailing_slash(&args.github_api_url),
             args.github_token.clone(),
         )),
         None => source::SourceKind::Git(source::git::GitSource::new()),
@@ -317,6 +326,20 @@ fn parse_tag(tag_pattern: String, tag: &String) -> Result<Version, Error> {
         Ok(version) => Ok(version),
         Err(error) => Err(Error::from(error)),
     }
+}
+
+/// Validates the given URL and returns a valid URL without a trailing slash.
+///
+/// # Arguments
+///
+/// * `url` - URL to be validated.
+///
+fn validate_trailing_slash(url: &String) -> String {
+    let mut url = url.clone();
+    if url.ends_with("/") {
+        url.pop();
+    }
+    url
 }
 
 #[cfg(test)]
