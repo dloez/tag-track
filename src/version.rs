@@ -84,19 +84,20 @@ pub fn increment_major(version: &mut Version) {
 ///
 /// Returns `error::Error` with the type of `error::ErrorKind::InvalidCommitPattern` if the given Regex pattern for the commit is not a valid.
 ///
-pub fn bump_version(
+pub fn bump_version<'a>(
     version: &mut Version,
     rules: &Vec<BumpRule>,
-    commits: &Vec<Commit>,
+    commits: &'a Vec<Commit>,
     commit_pattern: &str,
-) -> Result<Option<IncrementKind>, Error> {
+) -> Result<(Option<IncrementKind>, Vec<&'a String>), Error> {
+    let mut skipped_commits: Vec<&String> = Vec::new();
     let mut increment_kind: Option<IncrementKind> = None;
     'commits: for commit in commits {
         let commit_details = match extract_commit_details(commit, commit_pattern) {
             Ok(commit_details) => commit_details,
             Err(error) => match error.kind {
                 ErrorKind::InvalidCommitPattern => {
-                    println!("commit {} does not match the commit pattern", commit.sha);
+                    skipped_commits.push(&commit.sha);
                     continue;
                 }
                 _ => return Err(error),
@@ -171,7 +172,7 @@ pub fn bump_version(
         None => {}
     };
 
-    Ok(increment_kind)
+    Ok((increment_kind, skipped_commits))
 }
 
 /// Type to represent the sections of a conventional commit message.
@@ -369,7 +370,7 @@ mod tests {
             if_breaking_description: None,
             bump: IncrementKind::Major,
         }];
-        let increment_kind = bump_version(
+        let (increment_kind, _) = bump_version(
             &mut version,
             &rules,
             &commits,
@@ -391,7 +392,7 @@ mod tests {
             if_breaking_description: None,
             bump: IncrementKind::Major,
         }];
-        let increment_kind = bump_version(
+        let (increment_kind, _) = bump_version(
             &mut version,
             &rules,
             &commits,
@@ -413,7 +414,7 @@ mod tests {
             if_breaking_description: None,
             bump: IncrementKind::Major,
         }];
-        let increment_kind = bump_version(
+        let (increment_kind, _) = bump_version(
             &mut version,
             &rules,
             &commits,
