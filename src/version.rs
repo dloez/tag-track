@@ -10,11 +10,11 @@ use crate::{
 };
 use regex::Regex;
 use semver::{BuildMetadata, Prerelease, Version};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Types for different version.
 /// The increment types follow the Semantic Version specification.
-#[derive(Eq, PartialEq, Hash, Debug, Deserialize)]
+#[derive(Eq, PartialEq, Hash, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IncrementKind {
     /// Increment the major section of a version.
