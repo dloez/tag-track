@@ -43,8 +43,8 @@ bump_rules:
 ```
 Example with the default valus for all configuration fields:
 ```yaml
-tag_pattern: '(?<version>.*)'
-bump_rules: '^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$'
+tag_pattern: "(?<version>.*)"
+bump_rules: "^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$"
     - bump: patch
       types: [fix, style]
     - bump: minor

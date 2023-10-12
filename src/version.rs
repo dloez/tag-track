@@ -345,7 +345,6 @@ mod tests {
             message: "feat:".to_string(),
         };
         let commit_details = extract_commit_details(&commit, crate::config::DEFAULT_COMMIT_PATTERN);
-        println!("{:?}", commit_details);
         assert!(commit_details.is_err());
 
         let commit = Commit {
