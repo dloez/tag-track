@@ -197,10 +197,9 @@ runs:
       shell: bash
       run: |
         echo "::notice::Version increment: ${{ steps.tag-track-runner.outputs.old-version }} -> ${{ steps.tag-track-runner.outputs.new-version }}"
-        if [ "${{ steps.tag-track-runner.outputs.tag-created }}" == "true" ]; then
-          echo "::notice::New tag created: ${{ steps.tag-track-runner.outputs.new-tag }}"
-        fi
     - name: Push tag
       shell: bash
       if: ${{ steps.tag-track-runner.outputs.created-tag && inputs.push-tag }}
-      run: git push origin --tags
+      run: |
+        git push origin --tags
+        echo "::notice::New tag created and pushed: ${{ steps.tag-track-runner.outputs.new-tag }}"
