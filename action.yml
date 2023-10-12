@@ -189,6 +189,13 @@ runs:
         fi
         echo "::error::Raw Tag Track output: ${{ steps.tag-track-runner.outputs.raw-output }}"
         exit 1
+    - name: Print Tag Track information
+      shell: bash
+      run: |
+        echo "::notice::Version increment: ${{ steps.tag-track-runner.outputs.old-version }} -> ${{ steps.tag-track-runner.outputs.new-version }}"
+        if [ "${{ steps.tag-track-runner.outputs.tag-created }}" == "true" ]; then
+          echo "::notice::New tag created: ${{ steps.tag-track-runner.outputs.new-version }}"
+        fi
     - name: Push tag
       shell: bash
       if: ${{ steps.tag-track-runner.outputs.created-tag && inputs.push-tag }}
