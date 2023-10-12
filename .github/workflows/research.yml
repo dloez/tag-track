@@ -16,3 +16,4 @@ jobs:
         with:
           compile: true
           useCache: true
+          create-tag: true
