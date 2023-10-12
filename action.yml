@@ -3,34 +3,34 @@ description: Calculate semantic version bump based on conventional commits.
 author: David Lopez <davidlopez.hellin@outlook.com>
 inputs:
   create-tag:
-    description: Create a new tag with bumped version, defaults to false.
+    description: Create a new tag with bumped version. Defaults to `false`.
     default: false
   push-tag:
-    description: Push the new tag to the repository if `create-tag` is used, defaults to false.
+    description: Push the new tag to the repository if `create-tag` is used. Defaults to `false`.
     default: false
   github-repo:
-    description: Github repository in the format owner/repo, defaults to the repository that triggers the action.
+    description: Github repository in the format owner/repo. Defaults to the repository that triggers the action.
     required: false
   github-api-url:
-    description: Github API URL, defaults to the value of the environment variable `GITHUB_API_URL`.
+    description: Github API URL. Defaults to the value of the environment variable `GITHUB_API_URL`.
     required: false
   github-token:
     description: Github token to authorize requests to GitHub REST API. Can cause rate limit to be increased.
     required: false
   commit-sha:
-    description: Commit SHA from where the version bump will be calculated, defaults to the commit that triggers the action.
+    description: Commit SHA from where the version bump will be calculated. Defaults to the commit SHA that triggers the action.
     required: false
   compile:
-    description: Instead of downloading the binary, compile it from source.
+    description: Instead of downloading the binary, compile it from source. Defaults to `false`.
     default: false
   use-cache:
-    description: Save binary in cache to avoid downloading or compiling it every time.
+    description: Save binary in cache to avoid downloading or compiling it every time. Defaults to `false`.
     default: false
   git-author-name:
-    description: Name of the author for tags crated by Tag Track.
+    description: Name of the author for tags created by Tag Track. Defaults to `github-actions`.
     default: github-actions
   git-author-email:
-    description: Email of the author for tags crated by Tag Track.
+    description: Email of the author for tags created by Tag Track. Defaults to `github-actions@github.com`.
     default: github-actions@github.com
 outputs:
   tag-created:

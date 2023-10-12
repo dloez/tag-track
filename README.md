@@ -15,6 +15,8 @@ tag-track
 ```
 This will use the latest closest tag and the commit messages between that tag and the current commit to calculate the version bump.
 
+Refer to the [GitHub Action section](#github-action) for information on how to use Tag Track inside a GitHub actions workflow.
+
 ### Additional arguments
 - `--create-tag`: Automatically create a git tag with the calculated version bump. If no version bump was calculated, the tag creation will be skipped.
 - `--github-repo`: Use GitHub REST API instead of git history to calculate the version bump. The value should be `user-organization/repository-name`, for example `dloez/tag-track`.
@@ -25,8 +27,8 @@ This will use the latest closest tag and the commit messages between that tag an
 ### Configuration
 Additionally, you can create a `track.yaml` or `track.yml` file to configure:
 
-- Tag format. Use the `tag_pattern` field to specify a Regex pattern to get the version from the tag name. The pattern should contain naming capturing groups to capture the required fields. Read more about the required groups for this field in the (Naming capturing groups section)[#-Naming-capturing-groups]. The default pattern is `(?<version>.*)`.
-- Commit pattern. Use the `commit_pattern` field to specify a Regex pattern to get the commit fields specified in the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0). The pattern should contain naming capturing groups to capture the required fields. Read more about the required groups for this field in the [Naming capturing groups section](#-Naming-capturing-groups). Read more about the required groups for this field in the [Naming capturing groups section](#-Naming-capturing-groups). The default pattern is `^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$`, this pattern tries to follow the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0/#specification) as close **and simple** as possible while allowing to use custom types.
+- Tag format. Use the `tag_pattern` field to specify a Regex pattern to get the version from the tag name. The pattern should contain naming capturing groups to capture the required fields. Read more about the required groups for this field in the [Naming capturing groups section](#naming-capturing-groups). The default pattern is `(?<version>.*)`.
+- Commit pattern. Use the `commit_pattern` field to specify a Regex pattern to get the commit fields specified in the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0). The pattern should contain naming capturing groups to capture the required fields. Read more about the required groups for this field in the [Naming capturing groups section](#naming-capturing-groups). The default pattern is `^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$`, this pattern tries to follow the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0/#specification) as close **and simple** as possible while allowing to use custom types.
 - Version bump rules. Use the `bump_rules` field to specify the rules used to calculate the version bump. If a rule condition is missing, that condition will not be evaluated. Each rule has the following fields:
   * `bump`: Version section to bump. Possible values are `major`, `minor`, and `patch`. Example: `bump: major` - will increase the `major` section of the semantic version if all rule conditions pass.
   * `types`: Condition - List of commit types. An `OR` operation will be used between list types. Example: `types: [feat, fix]` - will pass the condition if the commit type is `feat` or `fix`.
@@ -43,8 +45,8 @@ bump_rules:
 ```
 Example with the default valus for all configuration fields:
 ```yaml
-tag_pattern: "(?<version>.*)"
-bump_rules: "^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$"
+tag_pattern: '(?<version>.*)'
+bump_rules: '^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$'
     - bump: patch
       types: [fix, style]
     - bump: minor
@@ -52,6 +54,78 @@ bump_rules: "^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>
     - bump: major
       if_breaking_type: true
       if_breaking_description: true
+```
+
+## GitHub Action
+We provide a custom GitHub action to easily call Tag Track in GitHub actions workflows. This action can download or compile the version of Tag Track based on the specified action version. This action has been tested in `Linux`, `MacOS`, and `Windows` hosted runners.
+
+### Pre-requisites
+In order for Tag Track to work, the repository needs to be checked out before calling Tag Tack.
+
+### Inputs
+- `create-tag`: Create a new tag with bumped version. Defaults to `false`.
+- `push-tag`: Push the new tag to the repository if `create-tag` is used. Defaults to `false`.
+- `github-repo`: Github repository in the format owner/repo. Defaults to the repository that triggers the action.
+- `github-api-url`: Github API URL. Defaults to the value of the environment variable `GITHUB_API_URL`.
+- `github-token`: Github token to authorize requests to GitHub REST API. Can cause rate limit to be increased.
+- `commit-sha`: Commit SHA from where the version bump will be calculated. Defaults to the commit SHA that triggers the action.
+- `compile`: Instead of downloading the binary, compile it from source. Defaults to `false`.
+- `use-cache`: Save binary in cache to avoid downloading or compiling it every time. Defaults to `false`.
+- `git-author-name`: Name of the author for tags created by Tag Track. Defaults to `github-actions`.
+- `git-author-email`: Email of the author for tags created by Tag Track. Defaults to `github-actions@github.com`.
+
+The action will automatically reset to previous git author information as soon as it finishes.
+
+If you want to modify the different configuration properties, create a `track.yaml` or `track.yml` file in the root of the repository. Refer to the [Configuration section](#configuration) for more information.
+
+### Outputs
+- `tag-created`: True if a new tag was created.
+- `new-tag`: Tag name if a new tag was created.
+- `old-version`: Old version before calculating the version bump.
+- `new-version`: New version after calculating the version bump.
+- `skipped-commits`: List of commits that were skipped because they don't match the commit pattern.
+- `error`: Error message if something went wrong.
+
+The action will create notices to inform the user about the version bump and if a new tag was created and pushed. In case there are any skipped commits, a new warning for each of the commits will be created.
+
+### Examples
+The version shown on these examples are only for demostration pourposes, use [the latest stable release version](https://github.com/dloez/tag-track/releases/latest) in your workflows. If you want to use any other version that does not have a release, use the compile mode.
+
+- Checkout repository, calculate version bump, and create and push a new tag with the bumped version. Use cache to save binary and avoid downloading it every time:
+```yaml
+- name: Checkout
+  uses: actions/checkout@v4
+- name: Tag Track
+  uses: dloez/tag-track@v1.0.0
+  with:
+    create-tag: true
+    push-tag: true
+    use-cache: true
+```
+
+- Checkout repository, calculate version bump, and create a new tag with the bumped version. Use cache to save binary and avoid downloading it every time. Instead of using Tag Track to push the image, push it manually:
+```yaml
+- name: Checkout
+  uses: actions/checkout@v4
+- name: Tag Track
+  uses: dloez/tag-track@v1.0.0
+  with:
+    create-tag: true
+    use-cache: true
+- name: Push tags
+  run: git push origin --tags
+```
+
+- Checkout repository, calculate version bump, and create and push a new tag with the bumped version. Instead of using a release, use the main branch and the compile mode with cache to avoid compiling it every time:
+```yaml
+- name: Checkout
+  uses: actions/checkout@v4
+- name: Tag Track
+  uses: dloez/tag-track@v1.0.0
+  with:
+    create-tag: true
+    compile: true
+    use-cache: true
 ```
 
 ## Naming capturing groups
@@ -67,7 +141,7 @@ Tag track uses [naming capturing groups](https://developer.mozilla.org/en-US/doc
 ## Project stability and current status
 Currently, Tag track has a high work-in-progress status, thus we are marking releases as pre-releases. There will be API changes and non-backward compatibility changes during this phase. Here is a list of features and improvements that we want to make before the release of Tag track `1.0.0`:
 
-- [ ] Custom GitHub actions with improved API to use inside GitHub actions jobs.
+- [x] Custom GitHub actions with improved API to use inside GitHub actions jobs.
 - [ ] More remote sources such as GitLab, Gitea, etc.
 - [x] Custom rules to calculate version bumps based on conventional commit messages.
 - [x] Support multiple tag formats. Currently only tags that follow the [semantic versioning 2.0](https://semver.org) can be parsed.
