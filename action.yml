@@ -30,6 +30,9 @@ outputs:
   tag-created:
     description: True if a new tag was created.
     value: ${{ steps.tag-track-runner.outputs.tag-created }}
+  new-tag:
+    description: Tag name if a new tag was created.
+    value: ${{ steps.tag-track-runner.outputs.new-tag }}
   old-version:
     description: Old version before calculating the version bump.
     value: ${{ steps.tag-track-runner.outputs.old-version }}
@@ -168,6 +171,7 @@ runs:
         echo "$tag_track_output" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
         echo "tag-created=$(echo $tag_track_output | jq -r '.tag_created')" >> $GITHUB_OUTPUT
+        echo "new-tag=$(echo $tag_track_output | jq -r '.new_tag')" >> $GITHUB_OUTPUT
         echo "old-version=$(echo $tag_track_output | jq -r '.old_version')" >> $GITHUB_OUTPUT
         echo "new-version=$(echo $tag_track_output | jq -r '.new_version')" >> $GITHUB_OUTPUT
         echo "skipped-commits=$(echo $tag_track_output | jq -cr '.skipped_commits')" >> $GITHUB_OUTPUT
@@ -194,7 +198,7 @@ runs:
       run: |
         echo "::notice::Version increment: ${{ steps.tag-track-runner.outputs.old-version }} -> ${{ steps.tag-track-runner.outputs.new-version }}"
         if [ "${{ steps.tag-track-runner.outputs.tag-created }}" == "true" ]; then
-          echo "::notice::New tag created: ${{ steps.tag-track-runner.outputs.new-version }}"
+          echo "::notice::New tag created: ${{ steps.tag-track-runner.outputs.new-tag }}"
         fi
     - name: Push tag
       shell: bash

@@ -60,6 +60,8 @@ struct Output<'a> {
     config: Option<&'a Config>,
     /// If a new tag was created.
     tag_created: bool,
+    /// New tag that was created.
+    new_tag: String,
     /// Old version before bumping.
     old_version: String,
     /// New version after bumping.
@@ -77,6 +79,7 @@ impl<'a> Output<'a> {
             inputs,
             config,
             tag_created: false,
+            new_tag: "".to_owned(),
             old_version: "".to_owned(),
             new_version: "".to_owned(),
             skipped_commits: vec![],
@@ -154,7 +157,7 @@ fn main() {
             exit(1);
         }
     };
-    let mut version = match parse_tag(&config.tag_pattern, closest_tag) {
+    let (mut version, start_match) = match parse_tag(&config.tag_pattern, &closest_tag) {
         Ok(version) => version,
         Err(error) => {
             print_error(error, &args, &output_format, Some(&config));
@@ -227,16 +230,18 @@ fn main() {
     }
 
     let tag_message = format!("Version {}", version);
-    let result = git::create_tag(&version.to_string(), &tag_message);
-    match result {
+    let mut new_tag_name = closest_tag.clone();
+    new_tag_name.replace_range(start_match.., version.to_string().as_str());
+    match git::create_tag(&new_tag_name, &tag_message) {
         Err(error) => {
             print_error(error, &args, &output_format, Some(&config));
             exit(1);
         }
         Ok(_) => {
             output.tag_created = true;
+            output.new_tag = new_tag_name.clone();
             match output_format {
-                OutputFormat::Text => println!("tag '{}' created!", version),
+                OutputFormat::Text => println!("tag '{}' created!", new_tag_name),
                 OutputFormat::Json => {
                     if let Ok(json_str) = to_string_pretty(&output) {
                         println!("{}", json_str);
@@ -297,7 +302,7 @@ const VERSION_FIELD: &str = "version";
 ///
 /// Returns `error::Error` with the type of `error::ErrorKind::NoVersionInTag` if the given tag does not contain a version.
 ///
-fn parse_tag(tag_pattern: &String, tag: &String) -> Result<Version, Error> {
+fn parse_tag(tag_pattern: &String, tag: &String) -> Result<(Version, usize), Error> {
     let re = match Regex::new(tag_pattern.as_str()) {
         Ok(re) => re,
         Err(error) => {
@@ -307,23 +312,9 @@ fn parse_tag(tag_pattern: &String, tag: &String) -> Result<Version, Error> {
             ))
         }
     };
+
     let captures = match re.captures(tag) {
         Some(captures) => captures,
-        None => {
-            return Err(Error::new(
-                ErrorKind::NoVersionInTag,
-                Some(
-                    format!(
-                        "no version found in tag {} with pattern {} asd",
-                        tag, tag_pattern
-                    )
-                    .as_str(),
-                ),
-            ))
-        }
-    };
-    let matched_version = match captures.name(VERSION_FIELD) {
-        Some(version) => version.as_str().to_owned(),
         None => {
             return Err(Error::new(
                 ErrorKind::NoVersionInTag,
@@ -338,10 +329,24 @@ fn parse_tag(tag_pattern: &String, tag: &String) -> Result<Version, Error> {
         }
     };
 
-    match Version::parse(matched_version.as_str()) {
-        Ok(version) => Ok(version),
-        Err(error) => Err(Error::from(error)),
-    }
+    let matched_version = match captures.name(VERSION_FIELD) {
+        Some(version) => (version.as_str().to_owned(), version.start()),
+        None => {
+            return Err(Error::new(
+                ErrorKind::NoVersionInTag,
+                Some(
+                    format!(
+                        "no version found in tag {} with pattern {}",
+                        tag, tag_pattern
+                    )
+                    .as_str(),
+                ),
+            ))
+        }
+    };
+
+    let parsed_version = Version::parse(matched_version.0.as_str())?;
+    Ok((parsed_version, matched_version.1))
 }
 
 /// Validates the given URL and returns a valid URL without a trailing slash.
@@ -367,7 +372,8 @@ mod tests {
         let tag_pattern = r"v(?P<version>.*)".to_string();
         let tag = "v1.2.3".to_owned();
         let version = parse_tag(&tag_pattern, &tag).unwrap();
-        assert_eq!(version.to_string(), "1.2.3");
+        assert_eq!(version.0.to_string(), "1.2.3");
+        assert_eq!(version.1, 1);
     }
 
     #[test]
