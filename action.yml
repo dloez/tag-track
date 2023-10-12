@@ -23,9 +23,15 @@ inputs:
   compile:
     description: Instead of downloading the binary, compile it from source.
     default: false
-  useCache:
+  use-cache:
     description: Save binary in cache to avoid downloading or compiling it every time.
     default: false
+  git-author-name:
+    description: Name of the author for tags crated by Tag Track.
+    default: github-actions
+  git-author-email:
+    description: Email of the author for tags crated by Tag Track.
+    default: github-actions@github.com
 outputs:
   tag-created:
     description: True if a new tag was created.
@@ -48,6 +54,17 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Save and set git author information
+      id: git-author
+      shell: bash
+      if: ${{ inputs.create-tag == 'true' }}
+      run: |
+        echo "git-author-name=$(git config user.name)" >> $GITHUB_OUTPUT
+        echo "git-author-email=$(git config user.email)" >> $GITHUB_OUTPUT
+        git config user.name "${{ inputs.git-author-name }}"
+        git config user.email "${{ inputs.git-author-email }}"
+        echo "::debug::Git author name: ${{ inputs.git-author-name }}"
+        echo "::debug::Git author email: ${{ inputs.git-author-email }}"
     - name: Get action reference - Linux/MacOS
       shell: bash
       if: ${{ runner.os != 'windows' }}
@@ -74,14 +91,14 @@ runs:
         ref: ${{ env.ACTION_REF }}
         path: tag-track-repo
     - name: Generate compile cache key
-      if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' }}
+      if: ${{ inputs.compile == 'true' && inputs.use-cache == 'true' }}
       id: gen-compile-cache-key
       shell: bash
       run: |
         hash_string=${{ hashFiles('tag-track-repo/**/*.rs', 'tag-track-repo/.cargo/**', 'tag-track-repo/Cargo*') }}
         echo "compile-cache-key=tag-track_compile_${RUNNER_OS}_${RUNNER_ARCH}_${hash_string:0:8}" >> $GITHUB_OUTPUT
     - name: Restore compile cache
-      if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' }}
+      if: ${{ inputs.compile == 'true' && inputs.use-cache == 'true' }}
       id: compile-cache-restore
       uses: actions/cache/restore@v3
       with:
@@ -102,18 +119,18 @@ runs:
         mv target/release/tag-track ../tag-track-bin/tag-track
         rm -rf tag-track-repo
     - name: Save cache
-      if: ${{ inputs.compile == 'true' && inputs.useCache == 'true' && steps.compile-cache-restore.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.compile == 'true' && inputs.use-cache == 'true' && steps.compile-cache-restore.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v3
       with:
         path: tag-track-bin
         key: ${{ steps.gen-compile-cache-key.outputs.compile-cache-key }}
     - name: Generate download cache key
-      if: ${{ inputs.compile == 'false' && inputs.useCache == 'true' }}
+      if: ${{ inputs.compile == 'false' && inputs.use-cache == 'true' }}
       id: gen-download-cache-key
       shell: bash
       run: echo "download-cache-key=tag-track_download_${RUNNER_OS}_${RUNNER_ARCH}_${{ env.ACTION_REF }}" >> $GITHUB_OUTPUT
     - name: Restore download cache
-      if: ${{ inputs.compile == 'false' && inputs.useCache == 'true' }}
+      if: ${{ inputs.compile == 'false' && inputs.use-cache == 'true' }}
       id: download-cache-restore
       uses: actions/cache/restore@v3
       with:
@@ -134,7 +151,7 @@ runs:
         New-Item -ItemType Directory -Force -Path tag-track-bin
         mv $env:localappdata/tag-track/bin/tag-track.exe ./tag-track-bin/tag-track
     - name: Save cache
-      if: ${{ inputs.compile == 'false' && inputs.useCache == 'true' && steps.download-cache-restore.outputs.cache-hit != 'true' }}
+      if: ${{ inputs.compile == 'false' && inputs.use-cache == 'true' && steps.download-cache-restore.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v3
       with:
         path: tag-track-bin
@@ -203,3 +220,9 @@ runs:
       run: |
         git push origin --tags
         echo "::notice::New tag created and pushed: ${{ steps.tag-track-runner.outputs.new-tag }}"
+    - name: Reset git author config
+      shell: bash
+      if: ${{ inputs.create-tag == 'true' }}
+      run: |
+        git config user.name "${{ steps.git-author.outputs.git-author-name }}"
+        git config user.email "${{ steps.git-author.outputs.git-author-email }}"
