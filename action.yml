@@ -53,7 +53,7 @@ runs:
         pattern=".*${GITHUB_REPOSITORY}/"
         echo "::debug::Action path - ${github_action_path}"
         echo "::debug::Pattern - ${pattern}"
-        echo "ACTION_REF=$(sed \"s|$pattern||g\" <<< $github_action_path)" >> $GITHUB_ENV
+        echo "ACTION_REF=$(sed "s|$pattern||g" <<< $github_action_path)" >> $GITHUB_ENV
     - name: Get action reference - Windows
       shell: bash
       if: ${{ runner.os == 'windows' }}
@@ -62,7 +62,7 @@ runs:
         pattern=".*${GITHUB_REPOSITORY}/"
         echo "::debug::Action path - ${github_action_path}"
         echo "::debug::Pattern - ${pattern}"
-        echo "ACTION_REF=$(sed \"s|$pattern||g\" <<< $github_action_path)" >> $GITHUB_ENV
+        echo "ACTION_REF=$(sed "s|$pattern||g" <<< $github_action_path)" >> $GITHUB_ENV
     - name: Checkout Tag Track
       if: ${{ inputs.compile == 'true' }}
       uses: actions/checkout@v4
@@ -115,12 +115,19 @@ runs:
         path: tag-track-bin
         key: ${{ steps.gen-download-cache-key.outputs.download-cache-key }}
     - name: Download Tag Track
-      if: ${{ inputs.compile == 'false' && steps.download-cache-restore.outputs.cache-hit != 'true' }}
+      if: ${{ runner.os != 'windows' && inputs.compile == 'false' && steps.download-cache-restore.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
-        curl https://raw.githubusercontent.com/dloez/tag-track/${{ env.ACTION_REF }}/install.sh | sh -s ${{ env.ACTION_REF }}
+        curl "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${{ env.ACTION_REF }}/install.sh" | sh -s ${{ env.ACTION_REF }}
         mkdir -p tag-track-bin
         mv $HOME/.tag-track/bin/tag-track ./tag-track-bin/tag-track
+    - name: Download Tag Track - windows
+      if: ${{ runner.os == 'windows' && inputs.compile == 'false' && steps.download-cache-restore.outputs.cache-hit != 'true' }}
+      shell: powershell
+      run: |
+        $null = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/${{ env.ACTION_REF }}/install.ps1" -OutFile "install.ps1"; powershell -ExecutionPolicy Bypass -File "./install.ps1" "${{ env.ACTION_REF }}"; Remove-Item "install.ps1" -Force
+        New-Item -ItemType Directory -Force -Path tag-track-bin
+        mv $env:localappdata/tag-track/bin/tag-track.exe ./tag-track-bin/tag-track
     - name: Save cache
       if: ${{ inputs.compile == 'false' && inputs.useCache == 'true' && steps.download-cache-restore.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v3
