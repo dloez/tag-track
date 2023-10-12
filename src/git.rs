@@ -262,6 +262,10 @@ pub fn get_commits(from_commit: &str, until_commit: &str) -> Result<Vec<Commit>,
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let mut commits: Vec<Commit> = vec![];
     for line in stdout.split('\n') {
+        if line.is_empty() {
+            continue;
+        }
+
         let mut sha = String::new();
         let mut message = String::new();
         let mut sha_done = false;
@@ -275,7 +279,6 @@ pub fn get_commits(from_commit: &str, until_commit: &str) -> Result<Vec<Commit>,
             }
             message.push(c);
         }
-
         commits.push(Commit { sha, message });
     }
     Ok(commits)
