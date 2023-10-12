@@ -140,7 +140,6 @@ runs:
       id: tag-track-runner
       shell: bash
       run: |
-        set +e
         command="./tag-track-bin/tag-track --output-format json"
         if [ -n "${{ inputs.github-token }}" ]; then
           command="$command --github-token ${{ inputs.github-token }}"
@@ -161,8 +160,13 @@ runs:
         if [ "${{ inputs.create-tag }}" == "true" ]; then
           command="$command --create-tag"
         fi
+        set +e
         echo "::debug::Running command $command"
-        tag_track_output="$(eval $command)"
+        tag_track_output="$(eval $command 2>&1)"
+        echo "exit-code=$?" >> $GITHUB_OUTPUT
+        echo "raw-output<<EOF" >> $GITHUB_OUTPUT
+        echo "$tag_track_output" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
         echo "tag-created=$(echo $tag_track_output | jq -r '.tag_created')" >> $GITHUB_OUTPUT
         echo "old-version=$(echo $tag_track_output | jq -r '.old_version')" >> $GITHUB_OUTPUT
         echo "new-version=$(echo $tag_track_output | jq -r '.new_version')" >> $GITHUB_OUTPUT
@@ -177,8 +181,14 @@ runs:
         done
     - name: Check tag-track error
       shell: bash
-      if: ${{ steps.tag-track-runner.outputs.error }}
-      run: echo ::error::${{ steps.tag-track-runner.outputs.error }} && exit 1
+      if: ${{ steps.tag-track-runner.outputs.error || steps.tag-track-runner.outputs.exit-code != 0 }}
+      run: |
+        if [ -n "${{ steps.tag-track-runner.outputs.error }}" ]; then
+          echo "::error::Tag Track error: ${{ steps.tag-track-runner.outputs.error }}"
+          exit 1
+        fi
+        echo "::error::Raw Tag Track output: ${{ steps.tag-track-runner.outputs.raw-output }}"
+        exit 1
     - name: Push tag
       shell: bash
       if: ${{ steps.tag-track-runner.outputs.created-tag && inputs.push-tag }}
