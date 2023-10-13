@@ -157,7 +157,7 @@ fn main() {
             exit(1);
         }
     };
-    let (mut version, start_match) = match parse_tag(&config.tag_pattern, &closest_tag) {
+    let (mut version, start_match) = match parse_tag(&config.tag_pattern, closest_tag) {
         Ok(version) => version,
         Err(error) => {
             print_error(error, &args, &output_format, Some(&config));
@@ -355,9 +355,9 @@ fn parse_tag(tag_pattern: &String, tag: &String) -> Result<(Version, usize), Err
 ///
 /// * `url` - URL to be validated.
 ///
-fn validate_trailing_slash(url: &String) -> String {
-    let mut url = url.clone();
-    if url.ends_with("/") {
+fn validate_trailing_slash(url: &str) -> String {
+    let mut url = url.to_owned();
+    if url.ends_with('/') {
         url.pop();
     }
     url
