@@ -43,7 +43,6 @@ jobs:
           github-token: ${{ github.token }}
           compile: true
           use-cache: true
-          tag-track-version: ${{ github.action_ref }}
       - name: Run cargo build
         run: TAG_TRACK_VERSION=${{ steps.tag-track.outputs.new-version }} cargo build --release --target ${{ matrix.os-target.target }}
       - name: Upload artifacts for reuse in release job

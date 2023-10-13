@@ -32,9 +32,6 @@ inputs:
   git-author-email:
     description: Email of the author for tags created by Tag Track. Defaults to `github-actions@github.com`.
     default: github-actions@github.com
-  tag-track-version:
-    description: Version of Tag Track to use. By default it uses the action reference as the Tag Track version but this does not work when referencing the action as a relative path.
-    required: false
 outputs:
   tag-created:
     description: True if a new tag was created.
@@ -57,11 +54,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Test action ref
-      shell: bash
-      run: echo $ACTION_REF
-      env:
-        ACTION_REF: ${{ github.action_ref }}
     - name: Save and set git author information
       id: git-author
       shell: bash
@@ -73,29 +65,15 @@ runs:
         git config user.email "${{ inputs.git-author-email }}"
         echo "::debug::Git author name: ${{ inputs.git-author-name }}"
         echo "::debug::Git author email: ${{ inputs.git-author-email }}"
-    - name: Get action reference - Linux/MacOS
-      shell: bash
-      if: ${{ runner.os != 'windows' && inputs.tag-track-version == '' }}
-      run: |
-        github_action_path=$GITHUB_ACTION_PATH
-        pattern=".*${GITHUB_REPOSITORY}/"
-        echo "::debug::Action path - ${github_action_path}"
-        echo "::debug::Pattern - ${pattern}"
-        echo "ACTION_REF=$(sed "s|$pattern||g" <<< $github_action_path)" >> $GITHUB_ENV
-    - name: Get action reference - Windows
-      shell: bash
-      if: ${{ runner.os == 'windows' && inputs.tag-track-version == '' }}
-      run: |
-        github_action_path=$(sed 's|\\|/|g' <<< $GITHUB_ACTION_PATH)
-        pattern=".*${GITHUB_REPOSITORY}/"
-        echo "::debug::Action path - ${github_action_path}"
-        echo "::debug::Pattern - ${pattern}"
-        echo "ACTION_REF=$(sed "s|$pattern||g" <<< $github_action_path)" >> $GITHUB_ENV
-    - name: Set action reference
-      shell: bash
-      if: ${{ inputs.tag-track-version != '' }}
-      run: |
-        echo "ACTION_REF=${{ inputs.tag-track-version }}" >> $GITHUB_ENV
+    - name: Checkout Tag Track
+      if: ${{ inputs.compile == 'true' }}
+      uses: actions/checkout@v4
+      with:
+        repository: dloez/tag-track
+        ref: ${{ env.ACTION_REF }}
+        path: tag-track-repo
+      env:
+        ACTION_REF: ${{ github.action_ref }}
     - name: Generate compile cache key
       if: ${{ inputs.compile == 'true' && inputs.use-cache == 'true' }}
       id: gen-compile-cache-key
@@ -134,7 +112,9 @@ runs:
       if: ${{ inputs.compile == 'false' && inputs.use-cache == 'true' }}
       id: gen-download-cache-key
       shell: bash
-      run: echo "download-cache-key=tag-track_download_${RUNNER_OS}_${RUNNER_ARCH}_${{ env.ACTION_REF }}" >> $GITHUB_OUTPUT
+      run: echo "download-cache-key=tag-track_download_${RUNNER_OS}_${RUNNER_ARCH}_${ACTION_REF}" >> $GITHUB_OUTPUT
+      env:
+        ACTION_REF: ${{ github.action_ref }}
     - name: Restore download cache
       if: ${{ inputs.compile == 'false' && inputs.use-cache == 'true' }}
       id: download-cache-restore
@@ -146,9 +126,11 @@ runs:
       if: ${{ runner.os != 'windows' && inputs.compile == 'false' && steps.download-cache-restore.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
-        curl "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${{ env.ACTION_REF }}/install.sh" | sh -s ${{ env.ACTION_REF }}
+        curl "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${ACTION_REF}/install.sh" | sh -s ${ACTION_REF}
         mkdir -p tag-track-bin
         mv $HOME/.tag-track/bin/tag-track ./tag-track-bin/tag-track
+      env:
+        ACTION_REF: ${{ github.action_ref }}
     - name: Download Tag Track - windows
       if: ${{ runner.os == 'windows' && inputs.compile == 'false' && steps.download-cache-restore.outputs.cache-hit != 'true' }}
       shell: powershell

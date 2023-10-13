@@ -27,7 +27,6 @@ jobs:
           github-token: ${{ github.token }}
           compile: true
           use-cache: true
-          tag-track-version: ${{ github.action_ref }}
   release:
     runs-on: ubuntu-latest
     permissions:
