@@ -57,7 +57,7 @@ bump_rules: '^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>
 ```
 
 ## GitHub Action
-We provide a custom GitHub action to easily call Tag Track in GitHub actions workflows. This action can download or compile the version of Tag Track based on the specified action version. This action has been tested in `Linux`, `MacOS`, and `Windows` hosted runners.
+We provide a custom GitHub action to easily call Tag Track in GitHub actions workflows. This action can download or compile the version of Tag Track based on the specified action version or the one referenced in `tag-track-version` input (this is **not** recommended). This action has been tested in `Linux`, `MacOS`, and `Windows` hosted runners.
 
 ### Pre-requisites
 In order for Tag Track to work, the repository needs to be checked out before calling Tag Tack.
@@ -73,6 +73,7 @@ In order for Tag Track to work, the repository needs to be checked out before ca
 - `use-cache`: Save binary in cache to avoid downloading or compiling it every time. Defaults to `false`.
 - `git-author-name`: Name of the author for tags created by Tag Track. Defaults to `github-actions`.
 - `git-author-email`: Email of the author for tags created by Tag Track. Defaults to `github-actions@github.com`.
+- `tag-track-version`: Version of Tag Track to use. By default it uses the action reference as the Tag Track version but this does not work when referencing the action as a relative path.
 
 The action will automatically reset to previous git author information as soon as it finishes.
 
