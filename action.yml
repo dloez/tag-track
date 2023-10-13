@@ -57,6 +57,11 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Test action ref
+      shell: bash
+      run: echo $ACTION_REF
+      env:
+        ACTION_REF: ${{ github.action_ref }}
     - name: Save and set git author information
       id: git-author
       shell: bash
@@ -91,13 +96,6 @@ runs:
       if: ${{ inputs.tag-track-version != '' }}
       run: |
         echo "ACTION_REF=${{ inputs.tag-track-version }}" >> $GITHUB_ENV
-    - name: Checkout Tag Track
-      if: ${{ inputs.compile == 'true' }}
-      uses: actions/checkout@v4
-      with:
-        repository: dloez/tag-track
-        ref: ${{ env.ACTION_REF }}
-        path: tag-track-repo
     - name: Generate compile cache key
       if: ${{ inputs.compile == 'true' && inputs.use-cache == 'true' }}
       id: gen-compile-cache-key
