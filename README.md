@@ -1,9 +1,9 @@
 # Tag Track
-Tag track is a version bump calculator and tracker that uses git tags with (semantic versions)[https://semver.org] and (conventional commits)[https://www.conventionalcommits.org/en/v1.0.0] to calculate the required bump.
+Tag track is a version bump calculator and tracker that uses git tags with [semantic versions](https://semver.org) and [conventional commits](https://www.conventionalcommits.org/en/v1.0.0) to calculate the bump.
 Tag track has been designed with the following key points:
-- Language agnostic. By using git tags to get the current version Tag track does not require any language integration. All projects that uses git can use Tag track.
-- Usable in CI environments. Tag track can rely in other sources to get the git history information required to work, such as the usage of REST API like the one provided by GitHub. This makes Tag track work even in environments where the git history is partially available like in CI environments.
-- Simple. All you need to do to run Tag track is download a prebuilt binary and run it. There are also instructions to built your own binary in case a prebuilt binary for your platform can't be found.
+- Language agnostic. By using git tags to get the current version Tag Track does not require any language integration. All projects that uses git can use Tag Track.
+- Usable in CI environments. Tag Track can rely in other sources to get the git history information required to work, such as the usage of REST API like the one provided by GitHub. This makes Tag Track work even in environments where the git history is partially available like in CI environments.
+- Simple. All you need to do to run Tag Track is download a prebuilt binary and run it. There are also instructions to built your own binary in case a prebuilt binary for your platform can't be found.
 
 ## Installation
 To install Tag track, visit the `Installation` section of [the latest release](https://github.com/dloez/tag-track/releases/latest).
@@ -20,7 +20,7 @@ Refer to the [GitHub Action section](#github-action) for information on how to u
 ### Additional arguments
 - `--create-tag`: Automatically create a git tag with the calculated version bump. If no version bump was calculated, the tag creation will be skipped.
 - `--github-repo`: Use GitHub REST API instead of git history to calculate the version bump. The value should be `user-organization/repository-name`, for example `dloez/tag-track`.
-- `--github-token`: GitHub token for authorizing the REST API calls. Useful when the target repository is private or when hitting the REST API rate limit without using authorized requests.
+- `--github-token`: GitHub token for authorizing the REST API calls. Useful when the target repository is private or to increase the REST API rate limit.
 - `--commit-sha`: Commits between this SHA and the closest tag will be used to calculate the version bump. Useful in combination of remote sources such as GitHub REST API or if you do not want to use the current commit to calculate the version bump.
 - `--output-format`: Format used to print the output. Useful for integrating Tag track with automatic systems. Possible values are `text` and `json`. Defaults to `text`.
 
@@ -103,7 +103,7 @@ The version shown on these examples are only for demostration pourposes, use [th
     use-cache: true
 ```
 
-- Checkout repository, calculate version bump, and create a new tag with the bumped version. Use cache to save binary and avoid downloading it every time. Instead of using Tag Track to push the image, push it manually:
+- Checkout repository, calculate version bump, and create a new tag with the bumped version. Use cache to save binary and avoid downloading it every time. Instead of using Tag Track to push the tag, push it manually:
 ```yaml
 - name: Checkout
   uses: actions/checkout@v4
@@ -121,7 +121,7 @@ The version shown on these examples are only for demostration pourposes, use [th
 - name: Checkout
   uses: actions/checkout@v4
 - name: Tag Track
-  uses: dloez/tag-track@v1.0.0
+  uses: dloez/tag-track@main // Not recommended, use a release instead.
   with:
     create-tag: true
     compile: true
