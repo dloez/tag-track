@@ -79,7 +79,7 @@ The action will automatically reset to previous git author information as soon a
 If you want to modify the different configuration properties, create a `track.yaml` or `track.yml` file in the root of the repository. Refer to the [Configuration section](#configuration) for more information.
 
 ### Outputs
-- `tag-created`: True if a new tag was created.
+- `tag-created`: `true` if a new tag was created.
 - `new-tag`: Tag name if a new tag was created.
 - `old-version`: Old version before calculating the version bump.
 - `new-version`: New version after calculating the version bump.

@@ -34,7 +34,7 @@ inputs:
     default: github-actions@github.com
 outputs:
   tag-created:
-    description: True if a new tag was created.
+    description: "`true` if a new tag was created."
     value: ${{ steps.tag-track-runner.outputs.tag-created }}
   new-tag:
     description: Tag name if a new tag was created.
@@ -204,7 +204,7 @@ runs:
         echo "::notice::Version increment: ${{ steps.tag-track-runner.outputs.old-version }} -> ${{ steps.tag-track-runner.outputs.new-version }}"
     - name: Push tag
       shell: bash
-      if: ${{ steps.tag-track-runner.outputs.created-tag && inputs.push-tag }}
+      if: ${{ steps.tag-track-runner.outputs.tag-created == 'true' && inputs.push-tag == 'true' }}
       run: |
         git push origin --tags
         echo "::notice::New tag created and pushed: ${{ steps.tag-track-runner.outputs.new-tag }}"
