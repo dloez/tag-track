@@ -32,6 +32,9 @@ inputs:
   git-author-email:
     description: Email of the author for tags created by Tag Track. Defaults to `github-actions@github.com`.
     default: github-actions@github.com
+  tag-track-version:
+    description: Version of Tag Track to use. By default it uses the action reference as the Tag Track version but this does not work when referencing the action as a relative path.
+    required: false
 outputs:
   tag-created:
     description: True if a new tag was created.
@@ -67,7 +70,7 @@ runs:
         echo "::debug::Git author email: ${{ inputs.git-author-email }}"
     - name: Get action reference - Linux/MacOS
       shell: bash
-      if: ${{ runner.os != 'windows' }}
+      if: ${{ runner.os != 'windows' && inputs.tag-track-version == '' }}
       run: |
         github_action_path=$GITHUB_ACTION_PATH
         pattern=".*${GITHUB_REPOSITORY}/"
@@ -76,13 +79,18 @@ runs:
         echo "ACTION_REF=$(sed "s|$pattern||g" <<< $github_action_path)" >> $GITHUB_ENV
     - name: Get action reference - Windows
       shell: bash
-      if: ${{ runner.os == 'windows' }}
+      if: ${{ runner.os == 'windows' && inputs.tag-track-version == '' }}
       run: |
         github_action_path=$(sed 's|\\|/|g' <<< $GITHUB_ACTION_PATH)
         pattern=".*${GITHUB_REPOSITORY}/"
         echo "::debug::Action path - ${github_action_path}"
         echo "::debug::Pattern - ${pattern}"
         echo "ACTION_REF=$(sed "s|$pattern||g" <<< $github_action_path)" >> $GITHUB_ENV
+    - name: Set action reference
+      shell: bash
+      if: ${{ inputs.tag-track-version != '' }}
+      run: |
+        echo "ACTION_REF=${{ inputs.tag-track-version }}" >> $GITHUB_ENV
     - name: Checkout Tag Track
       if: ${{ inputs.compile == 'true' }}
       uses: actions/checkout@v4
