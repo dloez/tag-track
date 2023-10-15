@@ -5,6 +5,7 @@
 //! or partially available.
 //!
 
+use crate::config::Config;
 use crate::error::{Error, ErrorKind};
 use crate::git::Commit;
 use crate::source::SourceActions;
@@ -26,7 +27,7 @@ const AUTH_HEADER: &str = "authorization";
 const DEFAULT_PER_PAGE: u64 = 100;
 
 /// Type that represents the required data for `tag-track` to calculate a version bump.
-pub struct GithubSource {
+pub struct GithubSource<'a> {
     /// Commit used to calculate the version bump.
     commits: Vec<Commit>,
     /// Oldest closest git tag. All commits between the referenced commit by this tag
@@ -38,6 +39,8 @@ pub struct GithubSource {
     /// If it is `false`, getter functions will return `error::SourceNotFetched`.
     remote_fetched: bool,
 
+    config: &'a crate::config::Config,
+
     /// GitHub repository identifier `org/repo-name`, example `dloez/tag-track`.
     repo_id: String,
     /// GitHub REST API base URL.
@@ -46,7 +49,7 @@ pub struct GithubSource {
     token: Option<String>,
 }
 
-impl GithubSource {
+impl<'a> GithubSource<'a> {
     /// Returns a new instance of a `GitHubSource` source.
     ///
     /// # Arguments
@@ -57,12 +60,18 @@ impl GithubSource {
     ///
     /// * `token` - GitHub REST API authentication token to authorize requests.
     ///
-    pub fn new(repo_id: String, api_url: String, token: Option<String>) -> Self {
+    pub fn new(
+        repo_id: String,
+        api_url: String,
+        token: Option<String>,
+        config: &'a Config,
+    ) -> Self {
         Self {
             commits: vec![],
             oldest_closest_tag: "".to_owned(),
             oldest_closest_tag_commit_sha: "".to_owned(),
             remote_fetched: false,
+            config,
             repo_id,
             api_url,
             token,
@@ -70,7 +79,7 @@ impl GithubSource {
     }
 }
 
-impl SourceActions for GithubSource {
+impl SourceActions for GithubSource<'_> {
     /// Fetches the source to gather the required data to calculate a version bump. This source uses the GitHub REST API to
     /// gather the data.
     ///
@@ -89,30 +98,39 @@ impl SourceActions for GithubSource {
     /// Returns `error::Error` with a kind of `error::ErrorKind::MissingGitOldestClosestTag` if the closest oldest closest tag
     /// could not be found.
     ///
+    // fn fetch_from_commit(&mut self, sha: &str) -> Result<(), Error> {
+    //     let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
+    //     if tags.is_empty() {
+    //         return Err(Error::new(ErrorKind::MissingGitTags, None));
+    //     }
+
+    //     let commit_iterator = CommitIterator::new(&self.repo_id, &self.api_url, &self.token, sha);
+    //     for commit in commit_iterator {
+    //         let commit = commit?;
+    //         let tag = find_tag_from_commit_sha(&commit.sha, &tags);
+
+    //         if let Some(tag) = tag {
+    //             self.oldest_closest_tag = tag.clone().name;
+    //             self.oldest_closest_tag_commit_sha = tag.commit.sha;
+    //             break;
+    //         }
+    //         self.commits.push(commit.into());
+    //     }
+
+    //     if self.oldest_closest_tag.is_empty() {
+    //         return Err(Error::new(ErrorKind::MissingGitOldestClosestTag, None));
+    //     };
+
+    //     self.remote_fetched = true;
+    //     Ok(())
+    // }
+
     fn fetch_from_commit(&mut self, sha: &str) -> Result<(), Error> {
         let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
         if tags.is_empty() {
             return Err(Error::new(ErrorKind::MissingGitTags, None));
         }
 
-        let commit_iterator = CommitIterator::new(&self.repo_id, &self.api_url, &self.token, sha);
-        for commit in commit_iterator {
-            let commit = commit?;
-            let tag = find_tag_from_commit_sha(&commit.sha, &tags);
-
-            if let Some(tag) = tag {
-                self.oldest_closest_tag = tag.clone().name;
-                self.oldest_closest_tag_commit_sha = tag.commit.sha;
-                break;
-            }
-            self.commits.push(commit.into());
-        }
-
-        if self.oldest_closest_tag.is_empty() {
-            return Err(Error::new(ErrorKind::MissingGitOldestClosestTag, None));
-        };
-
-        self.remote_fetched = true;
         Ok(())
     }
 

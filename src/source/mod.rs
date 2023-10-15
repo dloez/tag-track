@@ -10,7 +10,7 @@ use crate::error::Error;
 use crate::git::Commit;
 use enum_dispatch::enum_dispatch;
 
-pub mod git;
+// pub mod git;
 pub mod github;
 
 /// Trait to describe all common actions that all sources need to implement.
@@ -57,7 +57,7 @@ pub trait SourceActions {
 /// to manually implementing the trait with a match statement calling the function depending on the source kind.
 ///
 #[enum_dispatch(SourceActions)]
-pub enum SourceKind {
-    Git(git::GitSource),
-    Github(github::GithubSource),
+pub enum SourceKind<'a> {
+    // Git(git::GitSource),
+    Github(github::GithubSource<'a>),
 }
