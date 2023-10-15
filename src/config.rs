@@ -68,6 +68,9 @@ pub struct ParsedConfig {
 
     /// Rules for bumping the version number.
     pub bump_rules: Option<Vec<BumpRule>>,
+
+    /// The different commit scopes that have different versions.
+    pub version_scopes: Option<Vec<String>>,
 }
 
 /// Type to represent the rules for bumping the version number.
@@ -105,6 +108,9 @@ pub struct Config {
 
     /// Rules for bumping the version number.
     pub bump_rules: Vec<BumpRule>,
+
+    /// The different commit scopes that have different versions.
+    pub version_scopes: Vec<String>,
 }
 
 impl From<ParsedConfig> for Config {
@@ -125,21 +131,28 @@ impl From<ParsedConfig> for Config {
             None => get_default_bump_rules(),
         };
 
+        let version_scopes: Vec<String> = match parsed_config.version_scopes {
+            Some(version_scopes) => version_scopes,
+            None => vec![],
+        };
+
         Self {
             tag_pattern,
             commit_pattern,
             bump_rules,
+            version_scopes,
         }
     }
 }
 
 impl Config {
-    /// Create a new instance of `Config` wiht detaulf values.
+    /// Create a new instance of `Config` with default values.
     pub fn new() -> Config {
         Self {
             tag_pattern: DEFAULT_TAG_PATTERN.to_owned(),
             commit_pattern: DEFAULT_COMMIT_PATTERN.to_owned(),
             bump_rules: get_default_bump_rules(),
+            version_scopes: vec![],
         }
     }
 }
