@@ -7,7 +7,8 @@
 
 use crate::config::Config;
 use crate::error::{Error, ErrorKind};
-use crate::git::Commit;
+use crate::git::{Commit, Tag};
+use crate::parsing::extract_commit_details;
 use crate::source::SourceActions;
 use reqwest;
 use serde::Deserialize;
@@ -28,18 +29,12 @@ const DEFAULT_PER_PAGE: u64 = 100;
 
 /// Type that represents the required data for `tag-track` to calculate a version bump.
 pub struct GithubSource<'a> {
-    /// Commit used to calculate the version bump.
-    commits: Vec<Commit>,
-    /// Oldest closest git tag. All commits between the referenced commit by this tag
-    /// and the current/given commit will be used to calculate the version bump.
-    oldest_closest_tag: String,
-    /// Commit SHA referenced by the tag `oldest_closest_tag`.
-    oldest_closest_tag_commit_sha: String,
-    /// `true` if the source has been fetched by calling `fetch_from_commit`, `false` other wise
-    /// If it is `false`, getter functions will return `error::SourceNotFetched`.
-    remote_fetched: bool,
+    /// Closest tags to current or given commit. If scoped versioning is not used, only the closest tag will be stored.
+    /// All commits between the including the current one and the one referenced by the oldest tag will be used to calculate
+    /// the version bump.
+    closest_tags: Vec<Tag>,
 
-    config: &'a crate::config::Config,
+    config: &'a Config,
 
     /// GitHub repository identifier `org/repo-name`, example `dloez/tag-track`.
     repo_id: String,
@@ -67,10 +62,7 @@ impl<'a> GithubSource<'a> {
         config: &'a Config,
     ) -> Self {
         Self {
-            commits: vec![],
-            oldest_closest_tag: "".to_owned(),
-            oldest_closest_tag_commit_sha: "".to_owned(),
-            remote_fetched: false,
+            closest_tags: vec![],
             config,
             repo_id,
             api_url,
@@ -79,95 +71,21 @@ impl<'a> GithubSource<'a> {
     }
 }
 
-impl SourceActions for GithubSource<'_> {
-    /// Fetches the source to gather the required data to calculate a version bump. This source uses the GitHub REST API to
-    /// gather the data.
-    ///
-    /// # Arguments
-    ///
-    /// * `sha` - git commit SHA from where the commits should be obtained. This SHA typically corresponds to the current
-    /// HEAD commit.
-    ///
-    /// # Errors
-    ///
-    /// Returns `error::Error` with a kind of `error::ErrorKind::ErrorKind::GithubRestError` if there was an unexpected
-    /// response while using the GitHub REST API.
-    ///
-    /// Returns `error::Error` with a kind of `error::ErrorKind::MissingGitTags` when not git tags were found.
-    ///
-    /// Returns `error::Error` with a kind of `error::ErrorKind::MissingGitOldestClosestTag` if the closest oldest closest tag
-    /// could not be found.
-    ///
-    // fn fetch_from_commit(&mut self, sha: &str) -> Result<(), Error> {
-    //     let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
-    //     if tags.is_empty() {
-    //         return Err(Error::new(ErrorKind::MissingGitTags, None));
-    //     }
+impl<'a> SourceActions<'a> for GithubSource<'a> {
+    fn get_closest_tags(&self) -> Result<&Vec<Tag>, Error> {
+        Ok(&self.closest_tags)
+    }
 
-    //     let commit_iterator = CommitIterator::new(&self.repo_id, &self.api_url, &self.token, sha);
-    //     for commit in commit_iterator {
-    //         let commit = commit?;
-    //         let tag = find_tag_from_commit_sha(&commit.sha, &tags);
-
-    //         if let Some(tag) = tag {
-    //             self.oldest_closest_tag = tag.clone().name;
-    //             self.oldest_closest_tag_commit_sha = tag.commit.sha;
-    //             break;
-    //         }
-    //         self.commits.push(commit.into());
-    //     }
-
-    //     if self.oldest_closest_tag.is_empty() {
-    //         return Err(Error::new(ErrorKind::MissingGitOldestClosestTag, None));
-    //     };
-
-    //     self.remote_fetched = true;
-    //     Ok(())
-    // }
-
-    fn fetch_from_commit(&mut self, sha: &str) -> Result<(), Error> {
+    fn get_commits(&'a mut self, sha: &'a str) -> Result<self::CommitIterator, Error> {
         let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
         if tags.is_empty() {
-            return Err(Error::new(ErrorKind::MissingGitTags, None));
-        }
-
-        Ok(())
-    }
-
-    /// Returns commit messages. This function can not be called without `fetch_from_commit` being called before
-    /// as that is the function that feeds tag track with data from the source.
-    ///
-    /// # Errors
-    ///
-    /// Returns `error::Error` with the type of `error::ErrorKind::SourceNotFetched` if the function is being
-    /// called without calling `fetch_from_commit` before.
-    ///
-    fn get_commits(&self) -> Result<&Vec<Commit>, Error> {
-        if !self.remote_fetched {
             return Err(Error::new(
-                ErrorKind::SourceNotFetched,
-                Some("get_commit_messages"),
+                ErrorKind::MissingGitTags,
+                Some("no tags found for repository"),
             ));
         }
-        Ok(&self.commits)
-    }
 
-    /// Returns the oldest closest git tag. This function can not be called without `fetch_from_commit` being called before
-    /// as that is the function that feeds tag track with data from the source.
-    ///
-    /// # Errors
-    ///
-    /// Returns `error::Error` with the type of `error::ErrorKind::SourceNotFetched` if the function is being
-    /// called without calling `fetch_from_commit` before.
-    ///
-    fn get_closest_oldest_tag(&self) -> Result<&String, Error> {
-        if !self.remote_fetched {
-            return Err(Error::new(
-                ErrorKind::SourceNotFetched,
-                Some("get_closest_tag"),
-            ));
-        }
-        Ok(&self.oldest_closest_tag)
+        Ok(CommitIterator::new(self, sha, tags, &self.config))
     }
 }
 
@@ -177,6 +95,15 @@ impl SourceActions for GithubSource<'_> {
 struct GithubTag {
     name: String,
     commit: GithubTagCommit,
+}
+
+impl From<GithubTag> for Tag {
+    fn from(val: GithubTag) -> Self {
+        Tag {
+            commit_sha: val.commit.sha,
+            name: val.name,
+        }
+    }
 }
 
 /// Used to deserialize responses from `https://api.github.com/repos/org/repo_name/tags`.
@@ -212,31 +139,58 @@ impl From<GithubCommitDetails> for Commit {
 
 /// Type used to iterate over GitHub commits. This type implements the `Iterator` trait
 /// and performs paginated requests to the GitHub REST API.
-struct CommitIterator<'a> {
+pub struct CommitIterator<'a> {
     page: u64,
     per_page: u64,
     commits: Vec<GithubCommitDetails>,
-    repo_id: &'a String,
-    api_url: &'a String,
-    token: &'a Option<String>,
+    source: &'a mut GithubSource<'a>,
     sha: &'a str,
-
+    tags: Vec<GithubTag>,
+    config: &'a Config,
+    version_scopes: Vec<String>,
+    is_finished: bool,
     max_elem: u64,
     current_elem: u64,
 }
 
-impl<'a> Iterator for CommitIterator<'a> {
-    type Item = Result<GithubCommitDetails, Error>;
+impl<'a> CommitIterator<'a> {
+    /// Returns a new instance of a `CommitIterator`.
+    fn new(
+        source: &'a mut GithubSource<'a>,
+        sha: &'a str,
+        tags: Vec<GithubTag>,
+        config: &'a Config,
+    ) -> Self {
+        CommitIterator {
+            page: 0,
+            per_page: DEFAULT_PER_PAGE,
+            commits: vec![],
+            source,
+            sha,
+            tags,
+            config,
+            version_scopes: config.version_scopes.clone(),
+            is_finished: false,
+            max_elem: 0,
+            current_elem: 0,
+        }
+    }
+}
 
-    /// Iterates over GitHub commits obtained by using paginated requests with 100 elements per page to the
-    /// GitHub REST API.
+impl<'a> Iterator for CommitIterator<'a> {
+    type Item = Result<Commit, Error>;
+
     fn next(&mut self) -> Option<Self::Item> {
+        if self.is_finished {
+            return None;
+        }
+
         if self.current_elem == self.max_elem {
             self.commits = match get_commits_from_commit_sha(
-                self.repo_id,
-                self.api_url,
+                &self.source.repo_id,
+                &self.source.api_url,
                 self.sha,
-                self.token,
+                &self.source.token,
                 &self.page,
                 &self.per_page,
             ) {
@@ -245,38 +199,37 @@ impl<'a> Iterator for CommitIterator<'a> {
                     return Some(Err(error));
                 }
             };
-
-            // max_element max value will be github per_page max element, which is currently 100
-            // and will """never""" exceed u64 size.
-            self.max_elem = self.commits.len() as u64;
-            self.current_elem = 0;
-            self.page += 1;
-        }
+        };
 
         let commit = self.commits.get(self.current_elem as usize);
         self.current_elem += 1;
-        Ok(commit.cloned()).transpose()
-    }
-}
+        if let None = commit {
+            return None;
+        }
 
-impl<'a> CommitIterator<'a> {
-    /// Returns a new instance of a `CommitIterator`.
-    fn new(
-        repo_id: &'a String,
-        api_url: &'a String,
-        token: &'a Option<std::string::String>,
-        sha: &'a str,
-    ) -> Self {
-        CommitIterator {
-            page: 0,
-            per_page: DEFAULT_PER_PAGE,
-            commits: vec![],
-            repo_id,
-            api_url,
-            token,
-            sha,
-            max_elem: 0,
-            current_elem: 0,
+        let commit: Commit = commit.unwrap().clone().into();
+        let tag = find_tag_from_commit_sha(&commit.sha, &self.tags);
+        if let None = tag {
+            return Some(Ok(commit));
+        }
+
+        self.source.closest_tags.push(tag.unwrap().into());
+        if self.config.version_scopes.is_empty() {
+            self.is_finished = true;
+            return Some(Ok(commit));
+        }
+
+        let commit_details = match extract_commit_details(&commit, &self.config.commit_pattern) {
+            Ok(commit_details) => commit_details,
+            Err(error) => {
+                return Some(Err(error));
+            }
+        };
+        if self.version_scopes.contains(&commit_details.scope) {
+            self.version_scopes.retain(|x| x != &commit_details.scope);
+            return Some(Ok(commit));
+        } else {
+            return self.next();
         }
     }
 }

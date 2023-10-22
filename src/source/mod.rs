@@ -7,7 +7,7 @@
 //!
 
 use crate::error::Error;
-use crate::git::Commit;
+use crate::git::Tag;
 use enum_dispatch::enum_dispatch;
 
 // pub mod git;
@@ -15,7 +15,7 @@ pub mod github;
 
 /// Trait to describe all common actions that all sources need to implement.
 #[enum_dispatch]
-pub trait SourceActions {
+pub trait SourceActions<'a> {
     /// Returns commit messages. This function can not be called without `fetch_from_commit` being called before
     /// as that is the function that feeds tag track with data from the source.
     ///
@@ -24,7 +24,7 @@ pub trait SourceActions {
     /// Returns `error::Error` with the type of `error::ErrorKind::SourceNotFetched` if the function is being
     /// called without calling `fetch_from_commit` before.
     ///
-    fn get_commits(&self) -> Result<&Vec<Commit>, Error>;
+    fn get_commits(&'a mut self, sha: &'a str) -> Result<github::CommitIterator, Error>;
 
     /// Returns the oldest closest git tag. This function can not be called without `fetch_from_commit` being called before
     /// as that is the function that feeds tag track with data from the source.
@@ -34,21 +34,7 @@ pub trait SourceActions {
     /// Returns `error::Error` with the type of `error::ErrorKind::SourceNotFetched` if the function is being
     /// called without calling `fetch_from_commit` before.
     ///
-    fn get_closest_oldest_tag(&self) -> Result<&String, Error>;
-
-    /// Fetches the source to gather the required data to calculate a version bump, this data can be obtained differently depending
-    /// on the source kind.
-    ///
-    /// # Arguments
-    ///
-    /// * `sha` - git commit SHA from where the commits should be obtained. This SHA typically corresponds to the current
-    /// HEAD commit.
-    ///
-    /// # Errors
-    ///
-    /// Returns `error::Error` with specific kinds depending of the source if there was an error while fetching the data.
-    ///
-    fn fetch_from_commit(&mut self, sha: &str) -> Result<(), Error>;
+    fn get_closest_tags(&self) -> Result<&Vec<Tag>, Error>;
 }
 
 /// Type used to wrap different source kinds.

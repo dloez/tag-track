@@ -18,6 +18,16 @@ pub struct Commit {
     pub message: String,
 }
 
+/// Type to define a Git tag.
+#[derive(Debug)]
+pub struct Tag {
+    /// Commit SHA referenced by tag.
+    pub commit_sha: String,
+
+    /// Tag name.
+    pub name: String,
+}
+
 /// Verifies the git installation and if the command is being spawned inside a git working tree.
 /// In case git is available and it is being called inside a git working tree, the function will return
 /// `Ok(())`.
