@@ -28,4 +28,6 @@ fn main() {
     for commit in commits {
         println!("Commit: {:?}", commit);
     }
+
+    println!("Tags: {:?}", source.get_closest_tags());
 }

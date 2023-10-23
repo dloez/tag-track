@@ -118,7 +118,9 @@ pub fn bump_version<'a>(
 
             // Check commit scope
             if let Some(scopes) = &rule.scopes {
-                if scopes.contains(&commit_details.scope) {
+                if commit_details.scope.is_some()
+                    && scopes.contains(commit_details.scope.as_ref().unwrap())
+                {
                     bump = true;
                 } else {
                     continue;

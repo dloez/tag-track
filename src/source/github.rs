@@ -5,10 +5,12 @@
 //! or partially available.
 //!
 
+use std::vec;
+
 use crate::config::Config;
 use crate::error::{Error, ErrorKind};
 use crate::git::{Commit, Tag};
-use crate::parsing::extract_commit_details;
+use crate::parsing::{extract_commit_details, extract_tag_details, TagDetails};
 use crate::source::SourceActions;
 use reqwest;
 use serde::Deserialize;
@@ -32,7 +34,7 @@ pub struct GithubSource<'a> {
     /// Closest tags to current or given commit. If scoped versioning is not used, only the closest tag will be stored.
     /// All commits between the including the current one and the one referenced by the oldest tag will be used to calculate
     /// the version bump.
-    closest_tags: Vec<Tag>,
+    closest_tags: Vec<TagDetails>,
 
     config: &'a Config,
 
@@ -72,10 +74,6 @@ impl<'a> GithubSource<'a> {
 }
 
 impl<'a> SourceActions<'a> for GithubSource<'a> {
-    fn get_closest_tags(&self) -> Result<&Vec<Tag>, Error> {
-        Ok(&self.closest_tags)
-    }
-
     fn get_commits(&'a mut self, sha: &'a str) -> Result<self::CommitIterator, Error> {
         let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
         if tags.is_empty() {
@@ -208,12 +206,23 @@ impl<'a> Iterator for CommitIterator<'a> {
         }
 
         let commit: Commit = commit.unwrap().clone().into();
-        let tag = find_tag_from_commit_sha(&commit.sha, &self.tags);
-        if let None = tag {
+        let tags = match find_tags_from_commit_sha(
+            &commit.sha,
+            &self.tags,
+            &self.config.tag_pattern,
+            self.config.version_scopes.is_empty(),
+        ) {
+            Ok(tags) => tags,
+            Err(error) => {
+                return Some(Err(error));
+            }
+        };
+
+        if tags.is_empty() {
             return Some(Ok(commit));
         }
 
-        self.source.closest_tags.push(tag.unwrap().into());
+        self.source.closest_tags.extend(tags);
         if self.config.version_scopes.is_empty() {
             self.is_finished = true;
             return Some(Ok(commit));
@@ -225,8 +234,8 @@ impl<'a> Iterator for CommitIterator<'a> {
                 return Some(Err(error));
             }
         };
-        if self.version_scopes.contains(&commit_details.scope) {
-            self.version_scopes.retain(|x| x != &commit_details.scope);
+        if let Some(scope) = commit_details.scope.as_ref().map(|s| s.as_str()) {
+            self.version_scopes.retain(|x| x != scope);
             return Some(Ok(commit));
         } else {
             return self.next();
@@ -421,11 +430,30 @@ fn get_commits_from_commit_sha(
 ///
 /// * `tags` - List of tags.
 ///
-fn find_tag_from_commit_sha(sha: &str, tags: &Vec<GithubTag>) -> Option<GithubTag> {
+fn find_tags_from_commit_sha(
+    sha: &str,
+    tags: &[GithubTag],
+    tag_pattern: &str,
+    scoped: bool,
+) -> Result<Vec<TagDetails>, Error> {
+    let mut found_tags = vec![];
     for tag in tags {
-        if tag.commit.sha == sha {
-            return Some((*tag).clone());
+        if tag.commit.sha != sha {
+            continue;
+        }
+
+        let tag: Tag = tag.clone().into();
+        let tag_details = extract_tag_details(&tag, &tag_pattern)?;
+        if !scoped {
+            found_tags.push(tag_details);
+            continue;
+        }
+
+        for found_tag in &mut found_tags {
+            if found_tag.scope == tag_details.scope && tag_details.version > found_tag.version {
+                *found_tag = tag_details.clone();
+            }
         }
     }
-    None
+    Ok(found_tags)
 }
