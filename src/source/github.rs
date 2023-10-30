@@ -31,12 +31,9 @@ const DEFAULT_PER_PAGE: u64 = 100;
 
 /// Type that represents the required data for `tag-track` to calculate a version bump.
 pub struct GithubSource<'a> {
-    /// Closest tags to current or given commit. If scoped versioning is not used, only the closest tag will be stored.
-    /// All commits between the including the current one and the one referenced by the oldest tag will be used to calculate
-    /// the version bump.
-    closest_tags: Vec<TagDetails>,
-
     config: &'a Config,
+
+    commit_iterator: Option<CommitIterator<'a>>,
 
     /// GitHub repository identifier `org/repo-name`, example `dloez/tag-track`.
     repo_id: String,
@@ -64,8 +61,8 @@ impl<'a> GithubSource<'a> {
         config: &'a Config,
     ) -> Self {
         Self {
-            closest_tags: vec![],
             config,
+            commit_iterator: None,
             repo_id,
             api_url,
             token,
@@ -74,7 +71,7 @@ impl<'a> GithubSource<'a> {
 }
 
 impl<'a> SourceActions<'a> for GithubSource<'a> {
-    fn get_commits(&'a mut self, sha: &'a str) -> Result<self::CommitIterator, Error> {
+    fn get_commits(&mut self, sha: &'a str) -> Result<&'a mut CommitIterator, Error> {
         let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
         if tags.is_empty() {
             return Err(Error::new(
@@ -83,7 +80,19 @@ impl<'a> SourceActions<'a> for GithubSource<'a> {
             ));
         }
 
-        Ok(CommitIterator::new(self, sha, tags, &self.config))
+        self.commit_iterator = Some(CommitIterator::new(
+            sha,
+            tags,
+            self.repo_id.clone(),
+            self.api_url.clone(),
+            self.token.clone(),
+            self.config,
+        ));
+        Ok(self.commit_iterator.as_mut().unwrap())
+    }
+
+    fn get_closest_tags(&self) -> &Vec<TagDetails> {
+        &self.commit_iterator.as_ref().unwrap().closest_tags
     }
 }
 
@@ -141,11 +150,15 @@ pub struct CommitIterator<'a> {
     page: u64,
     per_page: u64,
     commits: Vec<GithubCommitDetails>,
-    source: &'a mut GithubSource<'a>,
     sha: &'a str,
     tags: Vec<GithubTag>,
+    pub closest_tags: Vec<TagDetails>,
+    repo_id: String,
+    api_url: String,
+    github_token: Option<String>,
     config: &'a Config,
     version_scopes: Vec<String>,
+
     is_finished: bool,
     max_elem: u64,
     current_elem: u64,
@@ -154,20 +167,25 @@ pub struct CommitIterator<'a> {
 impl<'a> CommitIterator<'a> {
     /// Returns a new instance of a `CommitIterator`.
     fn new(
-        source: &'a mut GithubSource<'a>,
         sha: &'a str,
         tags: Vec<GithubTag>,
+        repo_id: String,
+        api_url: String,
+        github_token: Option<String>,
         config: &'a Config,
     ) -> Self {
         CommitIterator {
             page: 0,
             per_page: DEFAULT_PER_PAGE,
             commits: vec![],
-            source,
             sha,
             tags,
-            config,
+            closest_tags: vec![],
+            repo_id,
+            api_url,
+            github_token,
             version_scopes: config.version_scopes.clone(),
+            config,
             is_finished: false,
             max_elem: 0,
             current_elem: 0,
@@ -185,10 +203,10 @@ impl<'a> Iterator for CommitIterator<'a> {
 
         if self.current_elem == self.max_elem {
             self.commits = match get_commits_from_commit_sha(
-                &self.source.repo_id,
-                &self.source.api_url,
+                &self.repo_id,
+                &self.api_url,
                 self.sha,
-                &self.source.token,
+                &self.github_token,
                 &self.page,
                 &self.per_page,
             ) {
@@ -222,7 +240,7 @@ impl<'a> Iterator for CommitIterator<'a> {
             return Some(Ok(commit));
         }
 
-        self.source.closest_tags.extend(tags);
+        self.closest_tags.extend(tags);
         if self.config.version_scopes.is_empty() {
             self.is_finished = true;
             return Some(Ok(commit));

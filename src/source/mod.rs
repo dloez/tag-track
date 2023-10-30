@@ -6,7 +6,7 @@
 //! - `github`: uses the GitHub REST API as the source of truth.
 //!
 
-use crate::error::Error;
+use crate::{error::Error, parsing::TagDetails};
 use enum_dispatch::enum_dispatch;
 
 // pub mod git;
@@ -23,7 +23,9 @@ pub trait SourceActions<'a> {
     /// Returns `error::Error` with the type of `error::ErrorKind::SourceNotFetched` if the function is being
     /// called without calling `fetch_from_commit` before.
     ///
-    fn get_commits(&'a mut self, sha: &'a str) -> Result<github::CommitIterator, Error>;
+    fn get_commits(&mut self, sha: &'a str) -> Result<&'a mut github::CommitIterator, Error>;
+
+    fn get_closest_tags(&self) -> &Vec<TagDetails>;
 }
 
 /// Type used to wrap different source kinds.
