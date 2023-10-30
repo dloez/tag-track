@@ -17,7 +17,7 @@ fn main() {
     config.version_scopes = vec![String::from("example1"), String::from("example2")];
 
     let mut source = GithubSource::new(repo_id, api_url, token, &config);
-    let commits = match source.get_commits("069faa2c784049fc9e9f97a57579059295dd8236") {
+    let commit_iterator = match source.get_commits("069faa2c784049fc9e9f97a57579059295dd8236") {
         Ok(commits) => commits,
         Err(e) => {
             println!("Error: {}", e);
@@ -25,7 +25,7 @@ fn main() {
         }
     };
 
-    for commit in commits {
+    for commit in commit_iterator {
         println!("Commit: {:?}", commit);
     }
 
