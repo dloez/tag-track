@@ -105,16 +105,7 @@ struct GithubTagCommit {
 
 impl GithubTag {
     fn to_git_tag(self, tag_pattern: &str) -> Result<Tag, Error> {
-        let tag_details = match extract_tag_details(&self.name, tag_pattern) {
-            Ok(tag_details) => Some(tag_details),
-            Err(error) => {
-                if let ErrorKind::InvalidTagPattern = error.kind {
-                    None
-                } else {
-                    return Err(error);
-                }
-            }
-        };
+        let tag_details = extract_tag_details(&self.name, tag_pattern)?;
 
         Ok(Tag {
             name: self.name,
@@ -141,16 +132,7 @@ struct GithubCommit {
 
 impl GithubCommitDetails {
     fn to_git_commit(self, commit_pattern: &str) -> Result<Commit, Error> {
-        let commit_details = match extract_commit_details(&self.commit.message, commit_pattern) {
-            Ok(commit_details) => Some(commit_details),
-            Err(error) => {
-                if let ErrorKind::InvalidTagPattern = error.kind {
-                    None
-                } else {
-                    return Err(error);
-                }
-            }
-        };
+        let commit_details = extract_commit_details(&self.commit.message, commit_pattern)?;
 
         Ok(Commit {
             sha: self.sha,
@@ -165,6 +147,7 @@ impl GithubCommitDetails {
 pub struct CommitIterator<'a> {
     commits: Vec<GithubCommitDetails>,
     version_scopes: Vec<String>,
+    found_tags: Vec<Tag>,
     page: u64,
     per_page: u64,
     is_finished: bool,
@@ -192,6 +175,7 @@ impl<'a> CommitIterator<'a> {
         CommitIterator {
             commits: vec![],
             version_scopes: config.version_scopes.clone(),
+            found_tags: vec![],
             page: 0,
             per_page: DEFAULT_PER_PAGE,
             is_finished: false,
@@ -244,17 +228,28 @@ impl<'a> Iterator for CommitIterator<'a> {
             .to_git_commit(&self.config.commit_pattern)
         {
             Ok(commit) => commit,
-            Err(error) => {
-                return Some(Err(error));
-            }
+            Err(error) => return Some(Err(error)),
         };
         let tags =
             match find_tags_from_commit_sha(&commit.sha, &self.tags, &self.config.tag_pattern) {
                 Ok(tags) => tags,
-                Err(error) => {
-                    return Some(Err(error));
-                }
+                Err(error) => return Some(Err(error)),
             };
+        let mut cleaned_tags = vec![];
+        for tag in &tags {
+            let mut found = false;
+            for found_tag in &self.found_tags {
+                if found_tag.name == tag.name {
+                    found = true;
+                }
+            }
+
+            if !found {
+                cleaned_tags.push(tag.clone());
+                self.found_tags.push(tag.clone());
+            }
+        }
+        let tags = cleaned_tags;
 
         let commit_details = match &commit.details {
             Some(details) => details,
@@ -498,11 +493,17 @@ fn find_tags_from_commit_sha(
             continue;
         }
 
-        let tag: Tag = tag.clone().to_git_tag(tag_pattern)?;
+        let tag = tag.clone().to_git_tag(tag_pattern)?;
         let tag_details = match &tag.details {
             Some(details) => details,
             None => continue,
         };
+
+        if found_tags.is_empty() {
+            found_tags.push(tag);
+            continue;
+        }
+
         for found_tag in &mut found_tags {
             let found_tag_details = match &found_tag.details {
                 Some(details) => details,

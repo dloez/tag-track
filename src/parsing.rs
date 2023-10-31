@@ -44,7 +44,7 @@ pub struct CommitDetails {
 pub fn extract_commit_details(
     commit_message: &str,
     commit_pattern: &str,
-) -> Result<CommitDetails, Error> {
+) -> Result<Option<CommitDetails>, Error> {
     let re = match Regex::new(commit_pattern) {
         Ok(re) => re,
         Err(error) => {
@@ -57,28 +57,12 @@ pub fn extract_commit_details(
 
     let captures = match re.captures(commit_message) {
         Some(captures) => captures,
-        None => {
-            return Err(Error::new(
-                ErrorKind::InvalidCommitPattern,
-                Some(
-                    format!(
-                        "commit {} does not match pattern {}",
-                        commit_message, commit_pattern
-                    )
-                    .as_str(),
-                ),
-            ))
-        }
+        None => return Ok(None),
     };
 
     let commit_type = match captures.name(TYPE_CAPTURING_GROUP_NAME) {
-        None => {
-            return Err(Error::new(
-                ErrorKind::InvalidCommitPattern,
-                Some("missing commit type"),
-            ))
-        }
         Some(found_match) => found_match.as_str().trim().to_string(),
+        None => return Ok(None),
     };
 
     let scope = match captures.name(SCOPE_CAPTURING_GROUP_NAME) {
@@ -95,29 +79,21 @@ pub fn extract_commit_details(
     let breaking = captures.name(BREAKING_CAPTURING_GROUP_NAME).is_some();
 
     let description = match captures.name(DESCRIPTION_CAPTURING_GROUP_NAME) {
-        None => {
-            return Err(Error::new(
-                ErrorKind::InvalidCommitPattern,
-                Some("missing commit description"),
-            ))
-        }
+        None => return Ok(None),
         Some(found_match) => {
             if found_match.is_empty() {
-                return Err(Error::new(
-                    ErrorKind::InvalidCommitPattern,
-                    Some("missing commit description"),
-                ));
+                return Ok(None);
             }
             found_match.as_str().trim().to_string()
         }
     };
 
-    Ok(CommitDetails {
+    Ok(Some(CommitDetails {
         commit_type,
         scope,
         breaking,
         description,
-    })
+    }))
 }
 
 /// Type to represent the sections of a tag.
@@ -130,7 +106,7 @@ pub struct TagDetails {
     pub scope: Option<String>,
 }
 
-pub fn extract_tag_details(tag_name: &str, tag_pattern: &str) -> Result<TagDetails, Error> {
+pub fn extract_tag_details(tag_name: &str, tag_pattern: &str) -> Result<Option<TagDetails>, Error> {
     let re = match Regex::new(tag_pattern) {
         Ok(re) => re,
         Err(error) => {
@@ -143,26 +119,16 @@ pub fn extract_tag_details(tag_name: &str, tag_pattern: &str) -> Result<TagDetai
 
     let captures = match re.captures(tag_name) {
         Some(captures) => captures,
-        None => {
-            return Err(Error::new(
-                ErrorKind::InvalidTagPattern,
-                Some(format!("tag {} does not match pattern {}", tag_name, tag_pattern).as_str()),
-            ))
-        }
+        None => return Ok(None),
     };
 
     let version = match captures.name(VERSION_CAPTURING_GROUP_NAME) {
-        None => {
-            return Err(Error::new(
-                ErrorKind::InvalidTagPattern,
-                Some("missing version inside tag"),
-            ))
-        }
         Some(found_match) => {
             let version = found_match.as_str().trim().to_string();
             let version = Version::parse(&version)?;
             version
         }
+        None => return Ok(None),
     };
 
     let scope = match captures.name(SCOPE_CAPTURING_GROUP_NAME) {
@@ -176,5 +142,5 @@ pub fn extract_tag_details(tag_name: &str, tag_pattern: &str) -> Result<TagDetai
         ),
     };
 
-    Ok(TagDetails { version, scope })
+    Ok(Some(TagDetails { version, scope }))
 }

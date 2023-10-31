@@ -27,10 +27,6 @@ pub enum ErrorKind {
     InvalidOutputFormat,
     /// The regex pattern is not valid.
     InvalidRegexPattern,
-    /// The commit pattern does not match the commit.
-    InvalidCommitPattern,
-    /// The tag pattern does not match the tag.
-    InvalidTagPattern,
     /// The tag does not contain a version.
     NoVersionInTag,
     /// Unspecified found error. This error kind is also used for `From` implementation of
@@ -53,8 +49,6 @@ impl ErrorKind {
             MissingGitOldestClosestTag => "cannot find closest tag",
             InvalidOutputFormat => "the specified output format is not valid",
             InvalidRegexPattern => "the regex pattern is not valid",
-            InvalidCommitPattern => "the commit pattern does not match the commit",
-            InvalidTagPattern => "the tag pattern does not match the tag",
             NoVersionInTag => "the tag does not contain a version",
             Other => "other error",
         }
