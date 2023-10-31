@@ -10,7 +10,7 @@ use std::vec;
 use crate::config::Config;
 use crate::error::{Error, ErrorKind};
 use crate::git::{Commit, Tag};
-use crate::parsing::{extract_commit_details, extract_tag_details, TagDetails};
+use crate::parsing::{extract_commit_details, extract_tag_details};
 use crate::source::SourceActions;
 use reqwest;
 use serde::Deserialize;
@@ -32,8 +32,6 @@ const DEFAULT_PER_PAGE: u64 = 100;
 /// Type that represents the required data for `tag-track` to calculate a version bump.
 pub struct GithubSource<'a> {
     config: &'a Config,
-
-    commit_iterator: Option<CommitIterator<'a>>,
 
     /// GitHub repository identifier `org/repo-name`, example `dloez/tag-track`.
     repo_id: String,
@@ -62,7 +60,6 @@ impl<'a> GithubSource<'a> {
     ) -> Self {
         Self {
             config,
-            commit_iterator: None,
             repo_id,
             api_url,
             token,
@@ -71,7 +68,7 @@ impl<'a> GithubSource<'a> {
 }
 
 impl<'a> SourceActions<'a> for GithubSource<'a> {
-    fn get_commits(&mut self, sha: &'a str) -> Result<&'a mut CommitIterator, Error> {
+    fn get_commits(&self, sha: &'a str) -> Result<CommitIterator, Error> {
         let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
         if tags.is_empty() {
             return Err(Error::new(
@@ -80,19 +77,14 @@ impl<'a> SourceActions<'a> for GithubSource<'a> {
             ));
         }
 
-        self.commit_iterator = Some(CommitIterator::new(
+        Ok(CommitIterator::new(
             sha,
             tags,
-            self.repo_id.clone(),
-            self.api_url.clone(),
-            self.token.clone(),
+            &self.repo_id,
+            &self.api_url,
+            &self.token,
             self.config,
-        ));
-        Ok(self.commit_iterator.as_mut().unwrap())
-    }
-
-    fn get_closest_tags(&self) -> &Vec<TagDetails> {
-        &self.commit_iterator.as_ref().unwrap().closest_tags
+        ))
     }
 }
 
@@ -104,20 +96,32 @@ struct GithubTag {
     commit: GithubTagCommit,
 }
 
-impl From<GithubTag> for Tag {
-    fn from(val: GithubTag) -> Self {
-        Tag {
-            commit_sha: val.commit.sha,
-            name: val.name,
-        }
-    }
-}
-
 /// Used to deserialize responses from `https://api.github.com/repos/org/repo_name/tags`.
 /// Only the required fields by `tag-track` are included.
 #[derive(Debug, Deserialize, Clone)]
 struct GithubTagCommit {
     sha: String,
+}
+
+impl GithubTag {
+    fn to_git_tag(self, tag_pattern: &str) -> Result<Tag, Error> {
+        let tag_details = match extract_tag_details(&self.name, tag_pattern) {
+            Ok(tag_details) => Some(tag_details),
+            Err(error) => {
+                if let ErrorKind::InvalidTagPattern = error.kind {
+                    None
+                } else {
+                    return Err(error);
+                }
+            }
+        };
+
+        Ok(Tag {
+            name: self.name,
+            commit_sha: self.commit.sha,
+            details: tag_details,
+        })
+    }
 }
 
 /// Used to deserialize responses from `https://api.github.com/repos/org/repo_name/commits`.
@@ -135,33 +139,44 @@ struct GithubCommit {
     message: String,
 }
 
-impl From<GithubCommitDetails> for Commit {
-    fn from(val: GithubCommitDetails) -> Self {
-        Commit {
-            sha: val.sha,
-            message: val.commit.message,
-        }
+impl GithubCommitDetails {
+    fn to_git_commit(self, commit_pattern: &str) -> Result<Commit, Error> {
+        let commit_details = match extract_commit_details(&self.commit.message, commit_pattern) {
+            Ok(commit_details) => Some(commit_details),
+            Err(error) => {
+                if let ErrorKind::InvalidTagPattern = error.kind {
+                    None
+                } else {
+                    return Err(error);
+                }
+            }
+        };
+
+        Ok(Commit {
+            sha: self.sha,
+            message: self.commit.message,
+            details: commit_details,
+        })
     }
 }
 
 /// Type used to iterate over GitHub commits. This type implements the `Iterator` trait
 /// and performs paginated requests to the GitHub REST API.
 pub struct CommitIterator<'a> {
+    commits: Vec<GithubCommitDetails>,
+    version_scopes: Vec<String>,
     page: u64,
     per_page: u64,
-    commits: Vec<GithubCommitDetails>,
-    sha: &'a str,
-    tags: Vec<GithubTag>,
-    pub closest_tags: Vec<TagDetails>,
-    repo_id: String,
-    api_url: String,
-    github_token: Option<String>,
-    config: &'a Config,
-    version_scopes: Vec<String>,
-
     is_finished: bool,
     max_elem: u64,
     current_elem: u64,
+
+    sha: &'a str,
+    tags: Vec<GithubTag>,
+    repo_id: &'a String,
+    api_url: &'a String,
+    github_token: &'a Option<String>,
+    config: &'a Config,
 }
 
 impl<'a> CommitIterator<'a> {
@@ -169,32 +184,32 @@ impl<'a> CommitIterator<'a> {
     fn new(
         sha: &'a str,
         tags: Vec<GithubTag>,
-        repo_id: String,
-        api_url: String,
-        github_token: Option<String>,
+        repo_id: &'a String,
+        api_url: &'a String,
+        github_token: &'a Option<String>,
         config: &'a Config,
     ) -> Self {
         CommitIterator {
+            commits: vec![],
+            version_scopes: config.version_scopes.clone(),
             page: 0,
             per_page: DEFAULT_PER_PAGE,
-            commits: vec![],
-            sha,
-            tags,
-            closest_tags: vec![],
-            repo_id,
-            api_url,
-            github_token,
-            version_scopes: config.version_scopes.clone(),
-            config,
             is_finished: false,
             max_elem: 0,
             current_elem: 0,
+
+            sha,
+            tags,
+            repo_id,
+            api_url,
+            github_token,
+            config,
         }
     }
 }
 
 impl<'a> Iterator for CommitIterator<'a> {
-    type Item = Result<Commit, Error>;
+    type Item = Result<(Commit, Option<Vec<Tag>>), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.is_finished {
@@ -223,41 +238,65 @@ impl<'a> Iterator for CommitIterator<'a> {
             return None;
         }
 
-        let commit: Commit = commit.unwrap().clone().into();
-        let tags = match find_tags_from_commit_sha(
-            &commit.sha,
-            &self.tags,
-            &self.config.tag_pattern,
-            self.config.version_scopes.is_empty(),
-        ) {
-            Ok(tags) => tags,
+        let commit: Commit = match commit
+            .unwrap()
+            .clone()
+            .to_git_commit(&self.config.commit_pattern)
+        {
+            Ok(commit) => commit,
             Err(error) => {
                 return Some(Err(error));
             }
         };
+        let tags =
+            match find_tags_from_commit_sha(&commit.sha, &self.tags, &self.config.tag_pattern) {
+                Ok(tags) => tags,
+                Err(error) => {
+                    return Some(Err(error));
+                }
+            };
 
-        if tags.is_empty() {
-            return Some(Ok(commit));
-        }
+        let commit_details = match &commit.details {
+            Some(details) => details,
+            None => {
+                if tags.is_empty() {
+                    return Some(Ok((commit, None)));
+                }
 
-        self.closest_tags.extend(tags);
-        if self.config.version_scopes.is_empty() {
-            self.is_finished = true;
-            return Some(Ok(commit));
-        }
-
-        let commit_details = match extract_commit_details(&commit, &self.config.commit_pattern) {
-            Ok(commit_details) => commit_details,
-            Err(error) => {
-                return Some(Err(error));
+                return Some(Ok((commit, Some(tags))));
             }
         };
-        if let Some(scope) = commit_details.scope.as_ref().map(|s| s.as_str()) {
-            self.version_scopes.retain(|x| x != scope);
-            return Some(Ok(commit));
-        } else {
+
+        if tags.is_empty()
+            && self
+                .version_scopes
+                .contains(commit_details.scope.as_ref().unwrap_or(&String::new()))
+        {
+            return Some(Ok((commit, None)));
+        }
+
+        if tags.is_empty()
+            && !self
+                .version_scopes
+                .contains(commit_details.scope.as_ref().unwrap_or(&String::new()))
+        {
             return self.next();
         }
+
+        for tag in &tags {
+            let tag_details = match &tag.details {
+                Some(details) => details,
+                None => continue,
+            };
+            self.version_scopes
+                .retain(|scope| scope != tag_details.scope.as_ref().unwrap_or(&String::new()));
+        }
+
+        if self.version_scopes.is_empty() {
+            self.is_finished = true;
+        }
+
+        Some(Ok((commit, Some(tags))))
     }
 }
 
@@ -452,24 +491,28 @@ fn find_tags_from_commit_sha(
     sha: &str,
     tags: &[GithubTag],
     tag_pattern: &str,
-    scoped: bool,
-) -> Result<Vec<TagDetails>, Error> {
-    let mut found_tags = vec![];
+) -> Result<Vec<Tag>, Error> {
+    let mut found_tags: Vec<Tag> = vec![];
     for tag in tags {
         if tag.commit.sha != sha {
             continue;
         }
 
-        let tag: Tag = tag.clone().into();
-        let tag_details = extract_tag_details(&tag, &tag_pattern)?;
-        if !scoped {
-            found_tags.push(tag_details);
-            continue;
-        }
-
+        let tag: Tag = tag.clone().to_git_tag(tag_pattern)?;
+        let tag_details = match &tag.details {
+            Some(details) => details,
+            None => continue,
+        };
         for found_tag in &mut found_tags {
-            if found_tag.scope == tag_details.scope && tag_details.version > found_tag.version {
-                *found_tag = tag_details.clone();
+            let found_tag_details = match &found_tag.details {
+                Some(details) => details,
+                None => continue,
+            };
+            if found_tag_details.scope.as_ref().unwrap_or(&String::new())
+                == tag_details.scope.as_ref().unwrap_or(&String::new())
+                && tag_details.version > found_tag_details.version
+            {
+                *found_tag = tag.clone();
             }
         }
     }

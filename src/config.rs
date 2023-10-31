@@ -133,7 +133,7 @@ impl From<ParsedConfig> for Config {
 
         let version_scopes: Vec<String> = match parsed_config.version_scopes {
             Some(version_scopes) => version_scopes,
-            None => vec![],
+            None => vec![String::new()], // empty string required to match commits without scope
         };
 
         Self {

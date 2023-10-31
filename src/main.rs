@@ -16,7 +16,7 @@ fn main() {
     config.tag_pattern = String::from("(?<scope>.*)/(?<version>.*)");
     config.version_scopes = vec![String::from("example1"), String::from("example2")];
 
-    let mut source = GithubSource::new(repo_id, api_url, token, &config);
+    let source = GithubSource::new(repo_id, api_url, token, &config);
     let commit_iterator = match source.get_commits("069faa2c784049fc9e9f97a57579059295dd8236") {
         Ok(commits) => commits,
         Err(e) => {
@@ -26,8 +26,6 @@ fn main() {
     };
 
     for commit in commit_iterator {
-        println!("Commit: {:?}", commit);
+        println!("{:?}", commit);
     }
-
-    println!("Tags: {:?}", source.get_closest_tags());
 }

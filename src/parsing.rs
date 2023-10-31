@@ -1,5 +1,4 @@
 use crate::error::{Error, ErrorKind};
-use crate::git::{Commit, Tag};
 use regex::Regex;
 use semver::Version;
 
@@ -43,7 +42,7 @@ pub struct CommitDetails {
 /// Returns `error::Error` with the type of `error::ErrorKind::InvalidCommitPattern` if the given Regex pattern for the commit is not a valid.
 ///
 pub fn extract_commit_details(
-    commit: &Commit,
+    commit_message: &str,
     commit_pattern: &str,
 ) -> Result<CommitDetails, Error> {
     let re = match Regex::new(commit_pattern) {
@@ -56,7 +55,7 @@ pub fn extract_commit_details(
         }
     };
 
-    let captures = match re.captures(&commit.message) {
+    let captures = match re.captures(commit_message) {
         Some(captures) => captures,
         None => {
             return Err(Error::new(
@@ -64,7 +63,7 @@ pub fn extract_commit_details(
                 Some(
                     format!(
                         "commit {} does not match pattern {}",
-                        commit.message, commit_pattern
+                        commit_message, commit_pattern
                     )
                     .as_str(),
                 ),
@@ -131,7 +130,7 @@ pub struct TagDetails {
     pub scope: Option<String>,
 }
 
-pub fn extract_tag_details(tag: &Tag, tag_pattern: &str) -> Result<TagDetails, Error> {
+pub fn extract_tag_details(tag_name: &str, tag_pattern: &str) -> Result<TagDetails, Error> {
     let re = match Regex::new(tag_pattern) {
         Ok(re) => re,
         Err(error) => {
@@ -142,12 +141,12 @@ pub fn extract_tag_details(tag: &Tag, tag_pattern: &str) -> Result<TagDetails, E
         }
     };
 
-    let captures = match re.captures(&tag.name) {
+    let captures = match re.captures(tag_name) {
         Some(captures) => captures,
         None => {
             return Err(Error::new(
                 ErrorKind::InvalidTagPattern,
-                Some(format!("tag {} does not match pattern {}", tag.name, tag_pattern).as_str()),
+                Some(format!("tag {} does not match pattern {}", tag_name, tag_pattern).as_str()),
             ))
         }
     };
