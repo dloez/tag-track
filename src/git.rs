@@ -302,7 +302,7 @@ pub fn get_commits(
         }
         commits.push(Commit {
             sha,
-            details: Some(extract_commit_details(&message, commit_pattern)?),
+            details: extract_commit_details(&message, commit_pattern)?,
             message,
         });
     }
