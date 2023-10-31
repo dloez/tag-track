@@ -3,12 +3,7 @@
 //! Version increments follow the Semantic Versioning 2.0
 //!
 
-use crate::{
-    config::BumpRule,
-    error::{Error, ErrorKind},
-    git::Commit,
-    parsing::extract_commit_details,
-};
+use crate::{config::BumpRule, error::Error, git::Commit};
 use semver::{BuildMetadata, Prerelease, Version};
 use serde::{Deserialize, Serialize};
 
@@ -78,8 +73,6 @@ pub fn increment_major(version: &mut Version) {
 ///
 /// * `commits` - Commits that will be used to determine the increment kind.
 ///
-/// * `commit_pattern` - Pattern that will be used to parse the conventional commit.
-///
 /// # Errors
 ///
 /// Returns `error::Error` with the type of `error::ErrorKind::InvalidCommitPattern` if the given Regex pattern for the commit is not a valid.
@@ -88,20 +81,17 @@ pub fn bump_version<'a>(
     version: &mut Version,
     rules: &Vec<BumpRule>,
     commits: &'a Vec<Commit>,
-    commit_pattern: &str,
 ) -> Result<(Option<IncrementKind>, Vec<&'a String>), Error> {
     let mut skipped_commits: Vec<&String> = Vec::new();
     let mut increment_kind: Option<IncrementKind> = None;
+
     'commits: for commit in commits {
-        let commit_details = match extract_commit_details(commit, commit_pattern) {
-            Ok(commit_details) => commit_details,
-            Err(error) => match error.kind {
-                ErrorKind::InvalidCommitPattern => {
-                    skipped_commits.push(&commit.sha);
-                    continue;
-                }
-                _ => return Err(error),
-            },
+        let commit_details = match &commit.details {
+            Some(details) => details,
+            None => {
+                skipped_commits.push(&commit.sha);
+                continue;
+            }
         };
 
         for rule in rules {

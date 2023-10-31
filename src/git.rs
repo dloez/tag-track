@@ -7,6 +7,7 @@
 use std::process::Command;
 
 use crate::error::{Error, ErrorKind};
+use crate::parsing::{extract_commit_details, CommitDetails, TagDetails};
 
 /// Type to define a Git commit.
 #[derive(Debug)]
@@ -16,16 +17,22 @@ pub struct Commit {
 
     /// Commit message.
     pub message: String,
+
+    /// Commit details such as fields from conventional commits.
+    pub details: Option<CommitDetails>,
 }
 
 /// Type to define a Git tag.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Tag {
     /// Commit SHA referenced by tag.
     pub commit_sha: String,
 
     /// Tag name.
     pub name: String,
+
+    /// Tag details such as version and scope.
+    pub details: Option<TagDetails>,
 }
 
 /// Verifies the git installation and if the command is being spawned inside a git working tree.
@@ -237,7 +244,11 @@ pub fn get_tag_commit_sha(tag: &str) -> Result<String, Error> {
 /// Returns `error::Error` with a kind of `error::ErrorKind::Other` if the command called returned an unexpected error
 /// causing that the tag commit SHA cannot be obtained.
 ///
-pub fn get_commits(from_commit: &str, until_commit: &str) -> Result<Vec<Commit>, Error> {
+pub fn get_commits(
+    from_commit: &str,
+    until_commit: &str,
+    commit_pattern: &str,
+) -> Result<Vec<Commit>, Error> {
     let output_result = Command::new("git")
         .arg("log")
         .arg("--format=%H %s")
@@ -289,7 +300,11 @@ pub fn get_commits(from_commit: &str, until_commit: &str) -> Result<Vec<Commit>,
             }
             message.push(c);
         }
-        commits.push(Commit { sha, message });
+        commits.push(Commit {
+            sha,
+            details: Some(extract_commit_details(&message, commit_pattern)?),
+            message,
+        });
     }
     Ok(commits)
 }
