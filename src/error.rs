@@ -13,22 +13,14 @@ pub enum ErrorKind {
     MissingGit,
     /// The application is being called outside a git working tree.
     NotGitWorkingTree,
-    /// The source function `fetch_from_commit` or equivalent has not been called,
-    /// which means that the source has not collected the required information and
-    /// cannot be queried.
-    SourceNotFetched,
     /// Error returned by the GitHub REST API.
     GithubRestError,
     /// Can not get tags from source.
     MissingGitTags,
-    /// Can not find the git oldest closest tag.
-    MissingGitOldestClosestTag,
     /// The user given output format is not valid.
     InvalidOutputFormat,
     /// The regex pattern is not valid.
     InvalidRegexPattern,
-    /// The tag does not contain a version.
-    NoVersionInTag,
     /// Unspecified found error. This error kind is also used for `From` implementation of
     /// other errors.
     Other,
@@ -43,13 +35,10 @@ impl ErrorKind {
             GenericCommandFailed => "shell command failed",
             MissingGit => "missing git installation",
             NotGitWorkingTree => "the current directory does not seem to be a git working tree",
-            SourceNotFetched => "call `fetch` method before using this property",
             GithubRestError => "error while calling GitHub REST API",
             MissingGitTags => "cannot get tags from source",
-            MissingGitOldestClosestTag => "cannot find closest tag",
             InvalidOutputFormat => "the specified output format is not valid",
             InvalidRegexPattern => "the regex pattern is not valid",
-            NoVersionInTag => "the tag does not contain a version",
             Other => "other error",
         }
     }

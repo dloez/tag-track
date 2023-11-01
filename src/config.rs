@@ -22,6 +22,9 @@ const DEFAULT_TAG_PATTERN: &str = r"(?<version>.*)";
 pub const DEFAULT_COMMIT_PATTERN: &str =
     r"^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$";
 
+/// Default version scopes.
+pub const DEFAULT_VERSION_SCOPES: [String; 1] = [String::new()];
+
 fn get_default_bump_rules() -> Vec<BumpRule> {
     vec![
         BumpRule {
@@ -133,7 +136,7 @@ impl From<ParsedConfig> for Config {
 
         let version_scopes: Vec<String> = match parsed_config.version_scopes {
             Some(version_scopes) => version_scopes,
-            None => vec![String::new()], // empty string required to match commits without scope
+            None => DEFAULT_VERSION_SCOPES.to_vec(),
         };
 
         Self {
@@ -152,7 +155,7 @@ impl Config {
             tag_pattern: DEFAULT_TAG_PATTERN.to_owned(),
             commit_pattern: DEFAULT_COMMIT_PATTERN.to_owned(),
             bump_rules: get_default_bump_rules(),
-            version_scopes: vec![],
+            version_scopes: DEFAULT_VERSION_SCOPES.to_vec(),
         }
     }
 }

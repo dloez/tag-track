@@ -5,13 +5,13 @@
 //! or partially available.
 //!
 
-use std::vec;
+use std::{env, vec};
 
 use crate::config::Config;
 use crate::error::{Error, ErrorKind};
 use crate::git::{Commit, Tag};
 use crate::parsing::{parse_commit_details, parse_tag_details};
-use crate::source::SourceActions;
+use crate::source::{Reference, SourceActions};
 use reqwest;
 use serde::Deserialize;
 
@@ -28,6 +28,9 @@ const AUTH_HEADER: &str = "authorization";
 
 /// Default elements per page used for paginated requests.
 const DEFAULT_PER_PAGE: u64 = 100;
+
+/// GitHub actions environment variable name to get the commit sha that triggered a workflow.
+const GITHUB_SHA: &str = "GITHUB_SHA";
 
 /// Type that represents the required data for `tag-track` to calculate a version bump.
 pub struct GithubSource<'a> {
@@ -83,7 +86,10 @@ impl<'a> SourceActions<'a> for GithubSource<'a> {
     ///
     /// Returns `error::Error` with a kind of `error::ErrorKind::MissingGitTags` if there are no tags in the source.
     ///
-    fn get_commits(&self, sha: &'a str) -> Result<CommitIterator, Error> {
+    fn get_ref_iterator(
+        &self,
+        sha: &'a str,
+    ) -> Result<Box<dyn Iterator<Item = Result<Reference, Error>> + '_>, Error> {
         let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
         if tags.is_empty() {
             return Err(Error::new(
@@ -92,14 +98,21 @@ impl<'a> SourceActions<'a> for GithubSource<'a> {
             ));
         }
 
-        Ok(CommitIterator::new(
+        Ok(Box::new(RefIterator::new(
             sha,
             tags,
             &self.repo_id,
             &self.api_url,
             &self.token,
             self.config,
-        ))
+        )))
+    }
+
+    fn get_latest_commit_sha(&self) -> Result<String, Error> {
+        match env::var(GITHUB_SHA) {
+            Ok(sha) => Ok(sha),
+            Err(error) => Err(error.into()),
+        }
     }
 }
 
@@ -130,7 +143,7 @@ impl GithubTag {
     ///
     /// Returns `error::Error` with a kind of `error::ErrorKind::TagPatternError` if the tag pattern is invalid.
     ///
-    fn to_git_tag(self, tag_pattern: &str) -> Result<Tag, Error> {
+    fn convert_to_git_tag(self, tag_pattern: &str) -> Result<Tag, Error> {
         let tag_details = parse_tag_details(&self.name, tag_pattern)?;
 
         Ok(Tag {
@@ -168,7 +181,7 @@ impl GithubCommitDetails {
     ///
     /// Returns `error::Error` with a kind of `error::ErrorKind::CommitPatternError` if the commit pattern is invalid.
     ///
-    fn to_git_commit(self, commit_pattern: &str) -> Result<Commit, Error> {
+    fn convert_to_git_commit(self, commit_pattern: &str) -> Result<Commit, Error> {
         let commit_details = parse_commit_details(&self.commit.message, commit_pattern)?;
 
         Ok(Commit {
@@ -179,9 +192,9 @@ impl GithubCommitDetails {
     }
 }
 
-/// Type used to iterate over GitHub commits. This type implements the `Iterator` trait
-/// and performs paginated requests to the GitHub REST API.
-pub struct CommitIterator<'a> {
+/// Type used to iterate over GitHub references on the repository history.
+/// This type implements the `Iterator` trait and performs paginated requests to the GitHub REST API.
+pub struct RefIterator<'a> {
     /// List of commits obtained from the GitHub REST API. Commits are obtained on batches of 100 elements.
     commits: Vec<GithubCommitDetails>,
     /// List of version scopes that have not been found yet in the commits.
@@ -194,6 +207,8 @@ pub struct CommitIterator<'a> {
     is_finished: bool,
     /// Current element index in the `commits` vector.
     current_elem: u64,
+    /// Max element index in the `commits` vector.
+    max_elem: u64,
 
     /// Commit SHA from where the iteration will start.
     sha: &'a str,
@@ -209,7 +224,7 @@ pub struct CommitIterator<'a> {
     config: &'a Config,
 }
 
-impl<'a> CommitIterator<'a> {
+impl<'a> RefIterator<'a> {
     /// Returns a new instance of a `CommitIterator`.
     fn new(
         sha: &'a str,
@@ -219,13 +234,14 @@ impl<'a> CommitIterator<'a> {
         github_token: &'a Option<String>,
         config: &'a Config,
     ) -> Self {
-        CommitIterator {
+        RefIterator {
             commits: vec![],
             version_scopes: config.version_scopes.clone(),
-            page: 0,
+            page: 1,
             per_page: DEFAULT_PER_PAGE,
             is_finished: false,
             current_elem: 0,
+            max_elem: 0,
 
             sha,
             tags,
@@ -237,8 +253,8 @@ impl<'a> CommitIterator<'a> {
     }
 }
 
-impl<'a> Iterator for CommitIterator<'a> {
-    type Item = Result<(Commit, Option<Vec<Tag>>), Error>;
+impl<'a> Iterator for RefIterator<'a> {
+    type Item = Result<Reference, Error>;
 
     /// Returns the next commit and its associated tags until the required commits to calculate the version bump have
     /// been returned. If using scoped versioning, commits with scopes which tag has been already returned will be skipped.
@@ -254,83 +270,91 @@ impl<'a> Iterator for CommitIterator<'a> {
             return None;
         }
 
-        if self.current_elem == 0 {
+        if self.current_elem == self.max_elem {
             self.commits = match get_commits_from_commit_sha(
-                &self.repo_id,
-                &self.api_url,
+                self.repo_id,
+                self.api_url,
                 self.sha,
-                &self.github_token,
+                self.github_token,
                 &self.page,
                 &self.per_page,
             ) {
                 Ok(commits) => commits,
                 Err(error) => {
+                    self.is_finished = true;
                     return Some(Err(error));
                 }
             };
+            self.max_elem = self.commits.len() as u64;
+            self.current_elem = 0;
+            self.page += 1;
         };
 
         let commit = self.commits.get(self.current_elem as usize);
         self.current_elem += 1;
-        if let None = commit {
+        if commit.is_none() {
+            self.is_finished = true;
             return None;
         }
 
         let commit: Commit = match commit
             .unwrap()
             .clone()
-            .to_git_commit(&self.config.commit_pattern)
+            .convert_to_git_commit(&self.config.commit_pattern)
         {
             Ok(commit) => commit,
             Err(error) => return Some(Err(error)),
         };
-        let tags =
-            match find_tags_from_commit_sha(&commit.sha, &self.tags, &self.config.tag_pattern) {
-                Ok(tags) => tags,
-                Err(error) => return Some(Err(error)),
-            };
+        let tags = match find_tags_from_commit_sha(
+            &commit.sha,
+            &self.tags,
+            &self.config.tag_pattern,
+            &self.version_scopes,
+        ) {
+            Ok(tags) => tags,
+            Err(error) => return Some(Err(error)),
+        };
+
+        if tags.is_some() {
+            for tag in tags.as_ref().unwrap() {
+                let tag_details = match &tag.details {
+                    Some(details) => details,
+                    None => continue,
+                };
+                self.version_scopes
+                    .retain(|scope| scope != tag_details.scope.as_ref().unwrap_or(&String::new()));
+            }
+
+            if self.version_scopes.is_empty() {
+                self.is_finished = true;
+            }
+        }
 
         let commit_details = match &commit.details {
             Some(details) => details,
             None => {
-                if tags.is_empty() {
-                    return Some(Ok((commit, None)));
-                }
-
-                return Some(Ok((commit, Some(tags))));
+                return Some(Ok(Reference {
+                    commit: Some(commit),
+                    tags,
+                }))
             }
         };
 
-        if tags.is_empty()
-            && self
-                .version_scopes
-                .contains(commit_details.scope.as_ref().unwrap_or(&String::new()))
+        if self
+            .version_scopes
+            .contains(commit_details.scope.as_ref().unwrap_or(&String::new()))
         {
-            return Some(Ok((commit, None)));
+            return Some(Ok(Reference {
+                commit: Some(commit),
+                tags,
+            }));
         }
 
-        if tags.is_empty()
-            && !self
-                .version_scopes
-                .contains(commit_details.scope.as_ref().unwrap_or(&String::new()))
-        {
+        if tags.is_none() {
             return self.next();
         }
 
-        for tag in &tags {
-            let tag_details = match &tag.details {
-                Some(details) => details,
-                None => continue,
-            };
-            self.version_scopes
-                .retain(|scope| scope != tag_details.scope.as_ref().unwrap_or(&String::new()));
-        }
-
-        if self.version_scopes.is_empty() {
-            self.is_finished = true;
-        }
-
-        Some(Ok((commit, Some(tags))))
+        Some(Ok(Reference { commit: None, tags }))
     }
 }
 
@@ -421,7 +445,7 @@ fn get_all_tags(
     api_url: &String,
     token: &Option<String>,
 ) -> Result<Vec<GithubTag>, Error> {
-    let mut page: u64 = 0;
+    let mut page: u64 = 1;
     let mut tags: Vec<GithubTag> = vec![];
 
     loop {
@@ -533,18 +557,23 @@ fn find_tags_from_commit_sha(
     sha: &str,
     tags: &[GithubTag],
     tag_pattern: &str,
-) -> Result<Vec<Tag>, Error> {
+    valid_scopes: &[String],
+) -> Result<Option<Vec<Tag>>, Error> {
     let mut found_tags: Vec<Tag> = vec![];
     for tag in tags {
         if tag.commit.sha != sha {
             continue;
         }
 
-        let tag = tag.clone().to_git_tag(tag_pattern)?;
+        let tag = tag.clone().convert_to_git_tag(tag_pattern)?;
         let tag_details = match &tag.details {
             Some(details) => details,
             None => continue,
         };
+
+        if !valid_scopes.contains(tag_details.scope.as_ref().unwrap_or(&String::new())) {
+            continue;
+        }
 
         if found_tags.is_empty() {
             found_tags.push(tag);
@@ -564,5 +593,10 @@ fn find_tags_from_commit_sha(
             }
         }
     }
-    Ok(found_tags)
+
+    if found_tags.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(found_tags))
 }
