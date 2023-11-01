@@ -7,7 +7,7 @@
 use std::process::Command;
 
 use crate::error::{Error, ErrorKind};
-use crate::parsing::{extract_commit_details, CommitDetails, TagDetails};
+use crate::parsing::{parse_commit_details, CommitDetails, TagDetails};
 
 /// Type to define a Git commit.
 #[derive(Debug)]
@@ -302,7 +302,7 @@ pub fn get_commits(
         }
         commits.push(Commit {
             sha,
-            details: extract_commit_details(&message, commit_pattern)?,
+            details: parse_commit_details(&message, commit_pattern)?,
             message,
         });
     }

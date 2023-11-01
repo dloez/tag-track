@@ -10,7 +10,7 @@ use std::vec;
 use crate::config::Config;
 use crate::error::{Error, ErrorKind};
 use crate::git::{Commit, Tag};
-use crate::parsing::{extract_commit_details, extract_tag_details};
+use crate::parsing::{parse_commit_details, parse_tag_details};
 use crate::source::SourceActions;
 use reqwest;
 use serde::Deserialize;
@@ -31,6 +31,7 @@ const DEFAULT_PER_PAGE: u64 = 100;
 
 /// Type that represents the required data for `tag-track` to calculate a version bump.
 pub struct GithubSource<'a> {
+    /// Tag Track configuration.
     config: &'a Config,
 
     /// GitHub repository identifier `org/repo-name`, example `dloez/tag-track`.
@@ -52,11 +53,13 @@ impl<'a> GithubSource<'a> {
     ///
     /// * `token` - GitHub REST API authentication token to authorize requests.
     ///
+    /// * `config` - Tag Track configuration.
+    ///
     pub fn new(
+        config: &'a Config,
         repo_id: String,
         api_url: String,
         token: Option<String>,
-        config: &'a Config,
     ) -> Self {
         Self {
             config,
@@ -67,7 +70,19 @@ impl<'a> GithubSource<'a> {
     }
 }
 
+/// Trait to describe all common actions that all sources need to implement.
 impl<'a> SourceActions<'a> for GithubSource<'a> {
+    /// Returns an Iterator that will return commits and their associated tags for version bump. This iterator may skipped not
+    /// required commits or tags which are not required to calculate the version bump.
+    ///
+    /// # Arguments
+    ///
+    /// * `sha` - The commit sha to start the iteration from.
+    ///
+    /// # Errors
+    ///
+    /// Returns `error::Error` with a kind of `error::ErrorKind::MissingGitTags` if there are no tags in the source.
+    ///
     fn get_commits(&self, sha: &'a str) -> Result<CommitIterator, Error> {
         let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
         if tags.is_empty() {
@@ -104,8 +119,19 @@ struct GithubTagCommit {
 }
 
 impl GithubTag {
+    /// Converts a `GithubTag` into a `Tag`. If the tag details cannot be extracted,
+    /// the `details` struct will be `None`.
+    ///
+    /// # Arguments
+    ///
+    /// * `tag_pattern` - Pattern used to extract the tag details.
+    ///
+    /// # Errors
+    ///
+    /// Returns `error::Error` with a kind of `error::ErrorKind::TagPatternError` if the tag pattern is invalid.
+    ///
     fn to_git_tag(self, tag_pattern: &str) -> Result<Tag, Error> {
-        let tag_details = extract_tag_details(&self.name, tag_pattern)?;
+        let tag_details = parse_tag_details(&self.name, tag_pattern)?;
 
         Ok(Tag {
             name: self.name,
@@ -131,8 +157,19 @@ struct GithubCommit {
 }
 
 impl GithubCommitDetails {
+    /// Converts a `GithubCommitDetails` into a `Commit`. If the commit details cannot be extracted,
+    /// the `details` struct will be `None`.
+    ///
+    /// # Arguments
+    ///
+    /// * `commit_pattern` - Pattern used to extract the commit details.
+    ///
+    /// # Errors
+    ///
+    /// Returns `error::Error` with a kind of `error::ErrorKind::CommitPatternError` if the commit pattern is invalid.
+    ///
     fn to_git_commit(self, commit_pattern: &str) -> Result<Commit, Error> {
-        let commit_details = extract_commit_details(&self.commit.message, commit_pattern)?;
+        let commit_details = parse_commit_details(&self.commit.message, commit_pattern)?;
 
         Ok(Commit {
             sha: self.sha,
@@ -145,20 +182,30 @@ impl GithubCommitDetails {
 /// Type used to iterate over GitHub commits. This type implements the `Iterator` trait
 /// and performs paginated requests to the GitHub REST API.
 pub struct CommitIterator<'a> {
+    /// List of commits obtained from the GitHub REST API. Commits are obtained on batches of 100 elements.
     commits: Vec<GithubCommitDetails>,
+    /// List of version scopes that have not been found yet in the commits.
     version_scopes: Vec<String>,
-    found_tags: Vec<Tag>,
+    /// Current GitHub REST API page number.
     page: u64,
+    /// Elements per page used for paginated requests.
     per_page: u64,
+    /// If the iterator has finished iterating over the commits.
     is_finished: bool,
-    max_elem: u64,
+    /// Current element index in the `commits` vector.
     current_elem: u64,
 
+    /// Commit SHA from where the iteration will start.
     sha: &'a str,
+    /// List of tags obtained from the GitHub REST API.
     tags: Vec<GithubTag>,
+    /// GitHub repository identifier `org/repo-name`, example `dloez/tag-track`.
     repo_id: &'a String,
+    /// GitHub REST API base URL.
     api_url: &'a String,
+    /// GitHub REST API authentication token to authorize requests.
     github_token: &'a Option<String>,
+    /// Tag Track configuration.
     config: &'a Config,
 }
 
@@ -175,11 +222,9 @@ impl<'a> CommitIterator<'a> {
         CommitIterator {
             commits: vec![],
             version_scopes: config.version_scopes.clone(),
-            found_tags: vec![],
             page: 0,
             per_page: DEFAULT_PER_PAGE,
             is_finished: false,
-            max_elem: 0,
             current_elem: 0,
 
             sha,
@@ -195,12 +240,21 @@ impl<'a> CommitIterator<'a> {
 impl<'a> Iterator for CommitIterator<'a> {
     type Item = Result<(Commit, Option<Vec<Tag>>), Error>;
 
+    /// Returns the next commit and its associated tags until the required commits to calculate the version bump have
+    /// been returned. If using scoped versioning, commits with scopes which tag has been already returned will be skipped.
+    ///
+    /// If a tag is associated with multiple commits, the tag with the biggest version will be returned. This is also true
+    /// if scoped versioning is used and there are multiple tags with the same scope in the same commit.
+    ///
+    /// If there is a commit that does not conform the given commit pattern, it will be returned with `None` in the details
+    /// field. If there is a tag that does not conform the given tag pattern, it will be skipped.
+    ///
     fn next(&mut self) -> Option<Self::Item> {
         if self.is_finished {
             return None;
         }
 
-        if self.current_elem == self.max_elem {
+        if self.current_elem == 0 {
             self.commits = match get_commits_from_commit_sha(
                 &self.repo_id,
                 &self.api_url,
@@ -235,21 +289,6 @@ impl<'a> Iterator for CommitIterator<'a> {
                 Ok(tags) => tags,
                 Err(error) => return Some(Err(error)),
             };
-        let mut cleaned_tags = vec![];
-        for tag in &tags {
-            let mut found = false;
-            for found_tag in &self.found_tags {
-                if found_tag.name == tag.name {
-                    found = true;
-                }
-            }
-
-            if !found {
-                cleaned_tags.push(tag.clone());
-                self.found_tags.push(tag.clone());
-            }
-        }
-        let tags = cleaned_tags;
 
         let commit_details = match &commit.details {
             Some(details) => details,
@@ -473,14 +512,22 @@ fn get_commits_from_commit_sha(
     Ok(commits)
 }
 
-/// From a given list of `GitHub` tag, find the tag referencing a commit SHA equal to the given `sha` argument.
-/// If a tag with the given SHA cannot be found, `None` will be returned.
+/// From a given list of `GitHub` tag, find the list of tags referencing a commit SHA equal to the given `sha` argument.
+/// If a tag with the given SHA cannot be found, `None` will be returned. If there are multiple tags referencing the same
+/// commit SHA, the tag with the highest version will be returned. This is also true if scoped versioning is used and there
+/// are multiple tags with the same scope in the same commit.
 ///
 /// # Arguments
 ///
 /// * `sha` - Commit SHA that will be searched inside the tags commits.
 ///
 /// * `tags` - List of tags.
+///
+/// * `tag_pattern` - Pattern used to extract the tag details.
+///
+/// # Errors
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::TagPatternError` if the tag pattern is invalid.
 ///
 fn find_tags_from_commit_sha(
     sha: &str,

@@ -13,15 +13,17 @@ use enum_dispatch::enum_dispatch;
 pub mod github;
 
 /// Trait to describe all common actions that all sources need to implement.
-#[enum_dispatch]
 pub trait SourceActions<'a> {
-    /// Returns commit messages. This function can not be called without `fetch_from_commit` being called before
-    /// as that is the function that feeds tag track with data from the source.
+    /// Returns an Iterator that will return commits and their associated tags for version bump. This iterator may skipped not
+    /// required commits or tags which are not required to calculate the version bump.
+    ///
+    /// # Arguments
+    ///
+    /// * `sha` - The commit sha to start the iteration from.
     ///
     /// # Errors
     ///
-    /// Returns `error::Error` with the type of `error::ErrorKind::SourceNotFetched` if the function is being
-    /// called without calling `fetch_from_commit` before.
+    /// Check each source implementation to check specific source errors.
     ///
     fn get_commits(&self, sha: &'a str) -> Result<github::CommitIterator, Error>;
 }
@@ -33,6 +35,7 @@ pub trait SourceActions<'a> {
 ///
 #[enum_dispatch(SourceActions)]
 pub enum SourceKind<'a> {
+    // TODO: Implement git source
     // Git(git::GitSource),
     Github(github::GithubSource<'a>),
 }

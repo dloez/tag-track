@@ -33,15 +33,16 @@ pub struct CommitDetails {
 ///
 /// # Arguments
 ///
-/// * `commit` - Commit message that will be parsed.
+/// * `commit_message` - Commit message that will be parsed.
 ///
 /// * `commit_pattern` - Pattern that will be used to parse the conventional commit.
 ///
 /// # Errors
 ///
-/// Returns `error::Error` with the type of `error::ErrorKind::InvalidCommitPattern` if the given Regex pattern for the commit is not a valid.
+/// Returns `error::Error` with a kind of `error::ErrorKind::InvalidRegexPattern` if the given `commit_pattern`
+/// is not a valid regex pattern.
 ///
-pub fn extract_commit_details(
+pub fn parse_commit_details(
     commit_message: &str,
     commit_pattern: &str,
 ) -> Result<Option<CommitDetails>, Error> {
@@ -106,7 +107,20 @@ pub struct TagDetails {
     pub scope: Option<String>,
 }
 
-pub fn extract_tag_details(tag_name: &str, tag_pattern: &str) -> Result<Option<TagDetails>, Error> {
+/// Extracts the tag details from a tag name.
+///
+/// # Arguments
+///
+/// * `tag_name` - Tag name that will be parsed.
+///
+/// * `tag_pattern` - Pattern that will be used to parse the tag.
+///
+/// # Errors
+///
+/// Returns `error::Error` with a kind of `error::ErrorKind::InvalidRegexPattern` if the given `tag_pattern`
+/// is not a valid regex pattern.
+///
+pub fn parse_tag_details(tag_name: &str, tag_pattern: &str) -> Result<Option<TagDetails>, Error> {
     let re = match Regex::new(tag_pattern) {
         Ok(re) => re,
         Err(error) => {
