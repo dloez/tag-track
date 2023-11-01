@@ -6,13 +6,17 @@
 //! - `github`: uses the GitHub REST API as the source of truth.
 //!
 
-use crate::error::Error;
+use crate::{
+    error::Error,
+    git::{Commit, Tag},
+};
 use enum_dispatch::enum_dispatch;
 
 // pub mod git;
 pub mod github;
 
 /// Trait to describe all common actions that all sources need to implement.
+#[enum_dispatch]
 pub trait SourceActions<'a> {
     /// Returns an Iterator that will return commits and their associated tags for version bump. This iterator may skipped not
     /// required commits or tags which are not required to calculate the version bump.
@@ -25,7 +29,20 @@ pub trait SourceActions<'a> {
     ///
     /// Check each source implementation to check specific source errors.
     ///
-    fn get_commits(&self, sha: &'a str) -> Result<github::CommitIterator, Error>;
+    fn get_ref_iterator(
+        &self,
+        sha: &'a str,
+    ) -> Result<Box<dyn Iterator<Item = Result<Reference, Error>> + '_>, Error>;
+
+    fn get_latest_commit_sha(&self) -> Result<String, Error>;
+}
+
+/// Type used to wrap obtained references from iterating over commits.
+pub struct Reference {
+    /// Commit associated with the reference.
+    pub commit: Option<Commit>,
+    /// Tags associated with the reference.
+    pub tags: Option<Vec<Tag>>,
 }
 
 /// Type used to wrap different source kinds.
