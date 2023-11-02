@@ -13,7 +13,7 @@ Tag track needs to be executed inside a git working tree and requires at least o
 ```sh
 tag-track
 ```
-This will use the latest closest tag and the commit messages between that tag and the current commit to calculate the version bump.
+This will use the commits between the HEAD commit of the current branch and the closest tag to calculate the version bump. Note that Tag Track requires at least one tag to work, if there are no tags in the repository, Tag Track will fail.
 
 Refer to the [GitHub Action section](#github-action) for information on how to use Tag Track inside a GitHub actions workflow.
 
@@ -43,7 +43,7 @@ bump_rules:
     types: [feat]
     if_breaking_type: true
 ```
-Example with the default valus for all configuration fields:
+Example with the default values for all configuration fields:
 ```yaml
 tag_pattern: '(?<version>.*)'
 bump_rules: '^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$'
@@ -131,7 +131,7 @@ The version shown on these examples are only for demostration pourposes, use [th
 ## Naming capturing groups
 Tag track uses [naming capturing groups](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Regular_expressions/Named_capturing_group) to get the required information from tags and commits. The naming capturing groups allows the user to define custom patterns (even with different field ordering) and still get the required information. These are the naming capturing groups used by Tag track:
 - `tag_pattern`:
-  * `version`: captures the version that should follow the [semantic versioning 2.0 specfification](https://semver.org). This group is required.
+  * `version`: captures the version that should follow the [semantic versioning 2.0 specification](https://semver.org). This group is required.
 - `commit_pattern`: The following groups corresponds to the different fields in specified in the [conventional commit specification](https://www.conventionalcommits.org/en/v1.0.0):
   * `type`: captures the commit type. This group is required.
   * `scope`: captures the commit scope.
