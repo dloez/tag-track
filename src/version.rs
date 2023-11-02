@@ -62,6 +62,14 @@ pub fn increment_major(version: &mut Version) {
     version.build = BuildMetadata::EMPTY;
 }
 
+/// Calculate which kind of increment is produced by a commit based on the given rules.
+///
+/// # Arguments
+///
+/// * `commit` - Commit to calculate the increment.
+///
+/// * `rules` - Rules to calculate the increment.
+///
 pub fn calculate_increment(commit: &Commit, rules: &[BumpRule]) -> Option<IncrementKind> {
     let commit_details = match &commit.details {
         Some(details) => details,
