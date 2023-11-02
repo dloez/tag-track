@@ -41,7 +41,7 @@ struct Args {
     #[arg(long)]
     github_token: Option<String>,
 
-    /// All commits between the oldest closest tag and the one specified
+    /// All commits between the oldest tag and the one specified
     /// by this SHA will be used to calculate the version bump. Useful when using
     /// a remote repository with different git history as the local repository.
     #[arg(long)]
@@ -92,7 +92,7 @@ impl<'a> Output<'a> {
             new_tag: "".to_owned(),
             old_versions: vec![],
             new_versions: vec![],
-            skipped_commits: skipped_commits,
+            skipped_commits,
             error: "".to_owned(),
         }
     }
@@ -128,11 +128,6 @@ fn main() {
         None => Config::new(),
     };
 
-    if let Err(error) = git::verify_git() {
-        print_error(error, &args, &output_format, Some(&config));
-        exit(1);
-    }
-
     // TODO: This will not work when we have more sources
     let source: source::SourceKind = match args.github_repo.clone() {
         Some(repo) => source::SourceKind::Github(source::github::GithubSource::new(
@@ -141,7 +136,13 @@ fn main() {
             validate_trailing_slash(&args.github_api_url),
             args.github_token.clone(),
         )),
-        None => panic!(), //None => source::SourceKind::Git(source::git::GitSource::new()),
+        None => {
+            if let Err(error) = git::verify_git() {
+                print_error(error, &args, &output_format, Some(&config));
+                exit(1);
+            }
+            source::SourceKind::Git(source::git::GitSource::new(&config))
+        }
     };
 
     let commit_sha = match &args.commit_sha {
@@ -169,7 +170,7 @@ fn main() {
     }
 
     let mut skipped_commits_sha = vec![];
-    let mut latest_tags = vec![];
+    let mut closest_tags = vec![];
     for r in ref_iterator {
         let r = match r {
             Ok(refs) => refs,
@@ -180,8 +181,8 @@ fn main() {
         };
 
         if let Some(tags) = r.tags {
-            latest_tags.reserve(tags.len());
-            latest_tags.extend(tags);
+            closest_tags.reserve(tags.len());
+            closest_tags.extend(tags);
         }
 
         if r.commit.is_none() {
@@ -242,7 +243,7 @@ fn main() {
     let mut output = Output::new(&args, Some(&config), &skipped_commits_sha);
 
     let empty_scope = String::new();
-    for tag in &mut latest_tags {
+    for tag in &mut closest_tags {
         let tag_details = tag.details.as_mut().unwrap();
         let scope = tag_details.scope.as_ref().unwrap_or(&empty_scope);
 

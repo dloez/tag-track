@@ -13,6 +13,7 @@ use crate::{
 use enum_dispatch::enum_dispatch;
 
 // pub mod git;
+pub mod git;
 pub mod github;
 
 /// Trait to describe all common actions that all sources need to implement.
@@ -53,7 +54,6 @@ pub struct Reference {
 ///
 #[enum_dispatch(SourceActions)]
 pub enum SourceKind<'a> {
-    // TODO: Implement git source
-    // Git(git::GitSource),
+    Git(git::GitSource<'a>),
     Github(github::GithubSource<'a>),
 }

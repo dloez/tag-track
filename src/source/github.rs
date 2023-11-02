@@ -32,7 +32,7 @@ const DEFAULT_PER_PAGE: u64 = 100;
 /// GitHub actions environment variable name to get the commit sha that triggered a workflow.
 const GITHUB_SHA: &str = "GITHUB_SHA";
 
-/// Type that represents the required data for `tag-track` to calculate a version bump.
+/// Type that represents the GitHub as a source.
 pub struct GithubSource<'a> {
     /// Tag Track configuration.
     config: &'a Config,
@@ -50,13 +50,13 @@ impl<'a> GithubSource<'a> {
     ///
     /// # Arguments
     ///
+    /// * `config` - Tag Track configuration.
+    ///
     /// * `repo_id` - GitHub repository identifier in the format `org/repo-name`, example `dloez/tag-track`.
     ///
     /// * `api_url` - GitHub REST API base URL.
     ///
     /// * `token` - GitHub REST API authentication token to authorize requests.
-    ///
-    /// * `config` - Tag Track configuration.
     ///
     pub fn new(
         config: &'a Config,
@@ -91,7 +91,7 @@ impl<'a> SourceActions<'a> for GithubSource<'a> {
         sha: &'a str,
     ) -> Result<Box<dyn Iterator<Item = Result<Reference, Error>> + '_>, Error> {
         let tags = get_all_tags(&self.repo_id, &self.api_url, &self.token)?;
-        if tags.is_empty() {
+        if tags.is_none() {
             return Err(Error::new(
                 ErrorKind::MissingGitTags,
                 Some("no tags found for repository"),
@@ -100,7 +100,7 @@ impl<'a> SourceActions<'a> for GithubSource<'a> {
 
         Ok(Box::new(RefIterator::new(
             sha,
-            tags,
+            tags.unwrap(),
             &self.repo_id,
             &self.api_url,
             &self.token,
@@ -444,7 +444,7 @@ fn get_all_tags(
     repo_id: &String,
     api_url: &String,
     token: &Option<String>,
-) -> Result<Vec<GithubTag>, Error> {
+) -> Result<Option<Vec<GithubTag>>, Error> {
     let mut page: u64 = 1;
     let mut tags: Vec<GithubTag> = vec![];
 
@@ -459,7 +459,11 @@ fn get_all_tags(
         page += 1;
     }
 
-    Ok(tags)
+    if tags.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(tags))
 }
 
 /// Obtains commits from the given `sha` using the GitHub REST API. If `token` is given, the requests will be authorized.
