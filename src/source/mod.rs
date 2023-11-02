@@ -37,6 +37,22 @@ pub trait SourceActions<'a> {
 
     /// Returns the latest commit sha.
     fn get_latest_commit_sha(&self) -> Result<String, Error>;
+
+    /// Creates a new annotated tag with the given name, message and referencing the given commit sha.
+    ///
+    /// # Arguments
+    ///
+    /// * `tag_name` - The name of the tag to create.
+    ///
+    /// * `tag_message` - The message of the tag to create.
+    ///
+    /// * `commit_sha` - SHA of the commit that the tag will reference.
+    ///
+    /// Errors
+    ///
+    /// Check each source implementation to check specific source errors.
+    ///
+    fn create_tag(&self, tag_name: &str, tag_message: &str, commit_sha: &str) -> Result<(), Error>;
 }
 
 /// Type used to wrap obtained references from iterating over commits.

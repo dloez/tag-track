@@ -21,6 +21,10 @@ pub const GITHUB_API_BASE_URL: &str = "https://api.github.com";
 const GITHUB_TAGS_URI: &str = "/tags";
 /// GitHub REST API URI for querying commits. Must be used in combination with `GITHUB_BASE_URI`.
 const GITHUB_COMMITS_URI: &str = "/commits";
+/// GitHub REST API URI for creating git tags. Must be used in combination with `GITHUB_BASE_URI`.
+const GITHUB_GIT_TAGS_URI: &str = "/git/tags";
+// GitHub REST API URI for creating git references. Must be used in combination with `GITHUB_BASE_URI`.
+const GITHUB_GIT_REFS_URI: &str = "/git/refs";
 /// Content for the `User-Agent` header.
 const USER_AGENT: &str = "tag-track";
 /// Name for the authorization header for authorizing GitHub REST API requests.
@@ -108,11 +112,91 @@ impl<'a> SourceActions<'a> for GithubSource<'a> {
         )))
     }
 
+    /// Returns the latest commit sha.
     fn get_latest_commit_sha(&self) -> Result<String, Error> {
         match env::var(GITHUB_SHA) {
             Ok(sha) => Ok(sha),
             Err(error) => Err(error.into()),
         }
+    }
+
+    fn create_tag(&self, tag_name: &str, tag_message: &str, commit_sha: &str) -> Result<(), Error> {
+        if self.token.is_none() {
+            return Err(Error::new(
+                ErrorKind::AuthenticationRequired,
+                Some("missing GitHub token to create tag, use the `--github-token` to pass the token"),
+            ));
+        }
+
+        let data = serde_json::json!({
+            "tag": tag_name,
+            "message": tag_message,
+            "object": commit_sha,
+            "type": "commit",
+        });
+        let client = reqwest::blocking::Client::new()
+            .post(format!(
+                "{}/repos/{}{}",
+                &self.api_url, &self.repo_id, GITHUB_GIT_TAGS_URI
+            ))
+            .json(&data)
+            .header(reqwest::header::USER_AGENT, USER_AGENT)
+            .header(
+                AUTH_HEADER,
+                format!("Bearer {}", self.token.as_ref().unwrap()),
+            );
+
+        let response = match client.send() {
+            Err(error) => {
+                return Err(Error::new(
+                    ErrorKind::GithubRestError,
+                    Some(&error.to_string()),
+                ))
+            }
+            Ok(res) => res,
+        };
+
+        if response.status().as_u16() != 201 {
+            return Err(Error::new(
+                ErrorKind::GithubRestError,
+                Some(&response.text().unwrap()),
+            ));
+        }
+
+        let data = serde_json::json!({
+            "ref": format!("refs/tags/{}", tag_name),
+            "sha": commit_sha,
+        });
+        let client = reqwest::blocking::Client::new()
+            .post(format!(
+                "{}/repos/{}{}",
+                &self.api_url, &self.repo_id, GITHUB_GIT_REFS_URI
+            ))
+            .json(&data)
+            .header(reqwest::header::USER_AGENT, USER_AGENT)
+            .header(
+                AUTH_HEADER,
+                format!("Bearer {}", self.token.as_ref().unwrap()),
+            );
+
+        let response = match client.send() {
+            Err(error) => {
+                return Err(Error::new(
+                    ErrorKind::GithubRestError,
+                    Some(&error.to_string()),
+                ))
+            }
+            Ok(res) => res,
+        };
+
+        if response.status().as_u16() != 201 {
+            return Err(Error::new(
+                ErrorKind::GithubRestError,
+                Some(&response.text().unwrap()),
+            ));
+        }
+
+        Ok(())
     }
 }
 

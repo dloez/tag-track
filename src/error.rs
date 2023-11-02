@@ -21,6 +21,8 @@ pub enum ErrorKind {
     InvalidOutputFormat,
     /// The regex pattern is not valid.
     InvalidRegexPattern,
+    /// Authentication is required for the action you are trying to call.
+    AuthenticationRequired,
     /// Unspecified found error. This error kind is also used for `From` implementation of
     /// other errors.
     Other,
@@ -39,6 +41,9 @@ impl ErrorKind {
             MissingGitTags => "cannot get tags from source",
             InvalidOutputFormat => "the specified output format is not valid",
             InvalidRegexPattern => "the regex pattern is not valid",
+            AuthenticationRequired => {
+                "authentication is required for the action you are trying to call"
+            }
             Other => "other error",
         }
     }
