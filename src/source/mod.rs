@@ -34,6 +34,7 @@ pub trait SourceActions<'a> {
         sha: &'a str,
     ) -> Result<Box<dyn Iterator<Item = Result<Reference, Error>> + '_>, Error>;
 
+    /// Returns the latest commit sha.
     fn get_latest_commit_sha(&self) -> Result<String, Error>;
 }
 

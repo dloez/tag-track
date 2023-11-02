@@ -1,3 +1,6 @@
+//! This module includes utilities to parse conventional commits and tags.
+//!
+
 use crate::error::{Error, ErrorKind};
 use regex::Regex;
 use semver::Version;
@@ -66,11 +69,15 @@ pub fn parse_commit_details(
         None => return Ok(None),
     };
 
-    let scope = captures.name(SCOPE_CAPTURING_GROUP_NAME).map(|found_match| found_match
+    let scope = captures
+        .name(SCOPE_CAPTURING_GROUP_NAME)
+        .map(|found_match| {
+            found_match
                 .as_str()
                 .replace(['(', ')'], "")
                 .trim()
-                .to_string());
+                .to_string()
+        });
 
     let breaking = captures.name(BREAKING_CAPTURING_GROUP_NAME).is_some();
 
@@ -134,17 +141,21 @@ pub fn parse_tag_details(tag_name: &str, tag_pattern: &str) -> Result<Option<Tag
     let version = match captures.name(VERSION_CAPTURING_GROUP_NAME) {
         Some(found_match) => {
             let version = found_match.as_str().trim().to_string();
-            
+
             Version::parse(&version)?
         }
         None => return Ok(None),
     };
 
-    let scope = captures.name(SCOPE_CAPTURING_GROUP_NAME).map(|found_match| found_match
+    let scope = captures
+        .name(SCOPE_CAPTURING_GROUP_NAME)
+        .map(|found_match| {
+            found_match
                 .as_str()
                 .replace(['(', ')'], "")
                 .trim()
-                .to_string());
+                .to_string()
+        });
 
     Ok(Some(TagDetails { version, scope }))
 }

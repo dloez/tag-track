@@ -2,7 +2,7 @@
 //! to fetch the required data.
 //!
 //! This source is useful for working in CI environments, where the git history is neither not available
-//! or partially available.
+//! nor partially available.
 //!
 
 use std::{env, vec};
