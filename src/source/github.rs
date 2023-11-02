@@ -580,6 +580,7 @@ fn find_tags_from_commit_sha(
             continue;
         }
 
+        let mut found = false;
         for found_tag in &mut found_tags {
             let found_tag_details = match &found_tag.details {
                 Some(details) => details,
@@ -590,7 +591,13 @@ fn find_tags_from_commit_sha(
                 && tag_details.version > found_tag_details.version
             {
                 *found_tag = tag.clone();
+                found = true;
+                break;
             }
+        }
+
+        if !found {
+            found_tags.push(tag);
         }
     }
 

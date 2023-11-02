@@ -68,7 +68,7 @@ struct Output<'a> {
     /// New versions after bumping.
     new_versions: Vec<OutputVersion>,
     /// Commits that were skipped during the version bump due to pattern mismatch.
-    skipped_commits: Vec<&'a String>,
+    skipped_commits: &'a Vec<String>,
     /// Error message if any.
     error: String,
 }
@@ -84,7 +84,7 @@ struct OutputVersion {
 
 impl<'a> Output<'a> {
     /// Creates a new `Output` instance with the given `inputs`.
-    fn new(inputs: &'a Args, config: Option<&'a Config>) -> Self {
+    fn new(inputs: &'a Args, config: Option<&'a Config>, skipped_commits: &'a Vec<String>) -> Self {
         Self {
             inputs,
             config,
@@ -92,7 +92,7 @@ impl<'a> Output<'a> {
             new_tag: "".to_owned(),
             old_versions: vec![],
             new_versions: vec![],
-            skipped_commits: vec![],
+            skipped_commits: skipped_commits,
             error: "".to_owned(),
         }
     }
@@ -239,7 +239,7 @@ fn main() {
     }
 
     let version_bumps = version_bumps;
-    let mut output = Output::new(&args, Some(&config));
+    let mut output = Output::new(&args, Some(&config), &skipped_commits_sha);
 
     let empty_scope = String::new();
     for tag in &mut latest_tags {
@@ -327,7 +327,8 @@ fn print_error(
     match output_format {
         OutputFormat::Text => println!("{}", error),
         OutputFormat::Json => {
-            let mut output = Output::new(inputs, config);
+            let skipped_commits = vec![];
+            let mut output = Output::new(inputs, config, &skipped_commits);
             output.error = format!("{}", error);
             if let Ok(json_str) = to_string_pretty(&output) {
                 println!("{}", json_str);
