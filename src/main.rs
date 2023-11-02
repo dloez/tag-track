@@ -59,10 +59,10 @@ struct Output<'a> {
     inputs: &'a Args,
     /// Configuration that was used.
     config: Option<&'a Config>,
-    /// If a new tag was created.
+    /// If at least one tag was created.
     tag_created: bool,
-    /// New tag that was created.
-    new_tag: String,
+    /// New tags that were created.
+    new_tags: Vec<String>,
     /// Old versions before bumping.
     old_versions: Vec<OutputVersion>,
     /// New versions after bumping.
@@ -89,7 +89,7 @@ impl<'a> Output<'a> {
             inputs,
             config,
             tag_created: false,
-            new_tag: "".to_owned(),
+            new_tags: vec![],
             old_versions: vec![],
             new_versions: vec![],
             skipped_commits,
@@ -293,10 +293,26 @@ fn main() {
                 );
             }
         }
-        output.old_versions.push(old_version);
-        output.new_versions.push(new_version);
+        output.old_versions.push(old_version.clone());
+        output.new_versions.push(new_version.clone());
 
-        // TODO: Tag creation
+        if args.create_tag {
+            let new_tag_name = tag
+                .name
+                .replace(old_version.version.as_str(), new_version.version.as_str());
+            let new_tag_message = &config.new_tag_message.replace("{scope}", scope);
+            let new_tag_message = new_tag_message.replace("{version}", &new_version.version);
+            if let Err(error) = source.create_tag(&new_tag_name, &new_tag_message, &commit_sha) {
+                print_error(error, &args, &output_format, Some(&config));
+                exit(1);
+            }
+            output.tag_created = true;
+            output.new_tags.push(new_tag_name.to_owned());
+
+            if let OutputFormat::Text = output_format {
+                println!("created tag {}", new_tag_name);
+            }
+        }
     }
 
     if let OutputFormat::Json = output_format {

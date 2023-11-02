@@ -19,11 +19,14 @@ use std::{
 const DEFAULT_TAG_PATTERN: &str = r"(?<version>.*)";
 
 /// Default Regex pattern used to validate conventional commits and extract the required fields from it.
-pub const DEFAULT_COMMIT_PATTERN: &str =
+const DEFAULT_COMMIT_PATTERN: &str =
     r"^(?<type>[a-zA-Z]*)(?<scope>\(.*\))?(?<breaking>!)?:(?<description>[\s\S]*)$";
 
 /// Default version scopes.
-pub const DEFAULT_VERSION_SCOPES: [String; 1] = [String::new()];
+const DEFAULT_VERSION_SCOPES: [String; 1] = [String::new()];
+
+/// Default message used when creating a new tag.
+const DEFAULT_NEW_TAG_MESSAGE: &str = "Version {version}";
 
 fn get_default_bump_rules() -> Vec<BumpRule> {
     vec![
@@ -74,6 +77,9 @@ pub struct ParsedConfig {
 
     /// The different commit scopes that have different versions.
     pub version_scopes: Option<Vec<String>>,
+
+    /// The tag name used when creating a new tag.
+    pub new_tag_message: Option<String>,
 }
 
 /// Type to represent the rules for bumping the version number.
@@ -114,6 +120,9 @@ pub struct Config {
 
     /// The different commit scopes that have different versions.
     pub version_scopes: Vec<String>,
+
+    /// The tag name used when creating a new tag.
+    pub new_tag_message: String,
 }
 
 impl From<ParsedConfig> for Config {
@@ -139,11 +148,17 @@ impl From<ParsedConfig> for Config {
             None => DEFAULT_VERSION_SCOPES.to_vec(),
         };
 
+        let new_tag_message = match parsed_config.new_tag_message {
+            Some(new_tag_message) => new_tag_message,
+            None => DEFAULT_NEW_TAG_MESSAGE.to_owned(),
+        };
+
         Self {
             tag_pattern,
             commit_pattern,
             bump_rules,
             version_scopes,
+            new_tag_message,
         }
     }
 }
@@ -156,6 +171,7 @@ impl Config {
             commit_pattern: DEFAULT_COMMIT_PATTERN.to_owned(),
             bump_rules: get_default_bump_rules(),
             version_scopes: DEFAULT_VERSION_SCOPES.to_vec(),
+            new_tag_message: DEFAULT_NEW_TAG_MESSAGE.to_owned(),
         }
     }
 }

@@ -60,6 +60,7 @@ impl<'a> SourceActions<'a> for GitSource<'a> {
         Ok(Box::new(RefIterator::new(sha, tags.unwrap(), self.config)))
     }
 
+    /// Returns the latest commit sha.
     fn get_latest_commit_sha(&self) -> Result<String, Error> {
         let output_result = Command::new("git").arg("rev-parse").arg("HEAD").output();
 
@@ -89,38 +90,55 @@ impl<'a> SourceActions<'a> for GitSource<'a> {
         Ok(stdout)
     }
 
-    // pub fn create_tag(tag: &str, tag_message: &str) -> Result<(), Error> {
-    //     let output_result = Command::new("git")
-    //         .arg("tag")
-    //         .args(["-a", tag])
-    //         .args(["-m", tag_message])
-    //         .output();
+    /// Creates a new annotated tag with the given name, message and referencing the given commit sha.
+    ///
+    /// # Arguments
+    ///
+    /// * `tag_name` - Name of the tag.
+    ///
+    /// * `tag_message` - Message of the tag.
+    ///
+    /// * `commit_sha` - SHA of the commit that the tag will reference.
+    ///
+    /// # Errors
+    ///
+    /// Returns `error::Error` with a kind of `error::ErrorKind::GenericCommandFailed` if the `git` command fails.
+    ///
+    /// Returns `error::Error` with a kind of `error::ErrorKind::Other` if the command output cannot be converted to a utf8 string.
+    ///
+    fn create_tag(&self, tag_name: &str, tag_message: &str, commit_sha: &str) -> Result<(), Error> {
+        let output_result = Command::new("git")
+            .arg("tag")
+            .args(["-a", tag_name])
+            .arg(commit_sha)
+            .args(["-m", tag_message])
+            .output();
 
-    //     let output = match output_result {
-    //         Ok(output) => output,
-    //         Err(error) => {
-    //             return Err(Error::new(
-    //                 ErrorKind::GenericCommandFailed,
-    //                 Some(&error.to_string()),
-    //             ))
-    //         }
-    //     };
+        let output = match output_result {
+            Ok(output) => output,
+            Err(error) => {
+                return Err(Error::new(
+                    ErrorKind::GenericCommandFailed,
+                    Some(&error.to_string()),
+                ))
+            }
+        };
 
-    //     if !output.status.success() {
-    //         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    //         return Err(Error::new(
-    //             ErrorKind::Other,
-    //             Some(&format!(
-    //                 "can not create tag '{}', error code: \"{}\", stderr: \"{}\"",
-    //                 tag,
-    //                 output.status.code().unwrap(),
-    //                 stderr.trim(),
-    //             )),
-    //         ));
-    //     }
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            return Err(Error::new(
+                ErrorKind::Other,
+                Some(&format!(
+                    "can not create tag '{}', error code: \"{}\", stderr: \"{}\"",
+                    tag_name,
+                    output.status.code().unwrap(),
+                    stderr.trim(),
+                )),
+            ));
+        }
 
-    //     Ok(())
-    // }
+        Ok(())
+    }
 }
 
 /// Type used to iterate over GitHub references on the repository history.
