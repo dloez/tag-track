@@ -34,17 +34,14 @@ inputs:
     default: github-actions@github.com
 outputs:
   tag-created:
-    description: "`true` if a new tag was created."
+    description: "`true` if at least a new tag was created"
     value: ${{ steps.tag-track-runner.outputs.tag-created }}
-  new-tag:
-    description: Tag name if a new tag was created.
-    value: ${{ steps.tag-track-runner.outputs.new-tag }}
-  old-version:
-    description: Old version before calculating the version bump.
-    value: ${{ steps.tag-track-runner.outputs.old-version }}
-  new-version:
-    description: New version after calculating the version bump.
-    value: ${{ steps.tag-track-runner.outputs.new-version }}
+  new-tags:
+    description: JSON Array of new tag names created.
+    value: ${{ steps.tag-track-runner.outputs.new-tags }}
+  version-bumps:
+    description: List of version bumps.
+    value: ${{ steps.tag-track-runner.outputs.version-bumps }}
   skipped-commits:
     description: List of commits that were skipped because they don't match the commit pattern.
     value: ${{ steps.tag-track-runner.outputs.skipped-commits }}
@@ -175,12 +172,11 @@ runs:
         echo "raw-output<<EOF" >> $GITHUB_OUTPUT
         echo "$tag_track_output" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
-        echo "tag-created=$(echo $tag_track_output | jq -r '.tag_created')" >> $GITHUB_OUTPUT
-        echo "new-tag=$(echo $tag_track_output | jq -r '.new_tag')" >> $GITHUB_OUTPUT
-        echo "old-version=$(echo $tag_track_output | jq -r '.old_version')" >> $GITHUB_OUTPUT
-        echo "new-version=$(echo $tag_track_output | jq -r '.new_version')" >> $GITHUB_OUTPUT
-        echo "skipped-commits=$(echo $tag_track_output | jq -cr '.skipped_commits')" >> $GITHUB_OUTPUT
-        echo "error=$(echo $tag_track_output | jq -r '.error')" >> $GITHUB_OUTPUT
+        echo "tag-created=$(jq -r '.tag_created' <<< $tag_track_output)" >> $GITHUB_OUTPUT
+        echo "new-tags=$(jq -cr '.new_tags' <<< $tag_track_output )" >> $GITHUB_OUTPUT
+        echo "version-bumps=$(jq -cr '.version_bumps' <<< $tag_track_output)" >> $GITHUB_OUTPUT
+        echo "skipped-commits=$(jq -cr '.skipped_commits')" >> $GITHUB_OUTPUT
+        echo "error=$(jq -r '.error' <<< $tag_track_output)" >> $GITHUB_OUTPUT
     - name: Print skipped commits
       if: ${{ steps.tag-track-runner.outputs.skipped-commits }}
       shell: bash
@@ -201,13 +197,22 @@ runs:
     - name: Print Tag Track information
       shell: bash
       run: |
-        echo "::notice::Version increment: ${{ steps.tag-track-runner.outputs.old-version }} -> ${{ steps.tag-track-runner.outputs.new-version }}"
+        for element in $(echo '${{ steps.tag-track-runner.outputs.version-bumps }}' | jq -c '.[]'); do
+          scope=$(echo $element | jq -r '.scope')
+          old_version=$(echo $element | jq -r '.old_version')
+          new_version=$(echo $element | jq -r '.new_version')
+          if [ "$scope" == "" ]; then
+            echo "::notice::Version bump: $old_version -> $new_version"
+          else
+            echo "::notice::Version bump for '$scope' scope: $old_version -> $new_version"
+          fi
+        done
     - name: Push tag
       shell: bash
       if: ${{ steps.tag-track-runner.outputs.tag-created == 'true' && inputs.push-tag == 'true' }}
       run: |
         git push origin --tags
-        echo "::notice::New tag created and pushed: ${{ steps.tag-track-runner.outputs.new-tag }}"
+        echo "::notice::New tag created and pushed: ${{ steps.tag-track-runner.outputs.new-tags }}"
     - name: Reset git author config
       shell: bash
       if: ${{ inputs.create-tag == 'true' }}
