@@ -99,36 +99,28 @@ Schema:
         "type": "string"
       }
     },
-    "old_versions": {
-      "description": "Array of object with the old versions before calculating the version bump",
+    "version_bumps": {
+      "description": "Array of version bumps calculated",
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "scope": {
-            "description": "Scope of the tag",
+            "description": "Scope of the new tag",
             "type": "string"
           },
-          "version": {
-            "description": "Version of the tag",
-            "type": "string"
-          }
-        }
-      }
-    },
-    "new_versions": {
-      "description": "Array of object with the new versions after calculating the version bump",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "scope": {
-            "description": "Scope of the tag",
+          "old_version": {
+            "description": "Old version before calculating the version bump",
             "type": "string"
           },
-          "version": {
-            "description": "Version of the tag",
+          "new_version": {
+            "description": "New version after calculating the version bump",
             "type": "string"
+          },
+          "increment_kind": {
+            "description": "Kind of increment used to calculate the version bump",
+            "type": "string",
+            "enum": ["major", "minor", "patch"]
           }
         }
       }
@@ -168,10 +160,9 @@ The action will automatically reset to previous git author information as soon a
 If you want to modify the different configuration properties, create a `track.yaml` or `track.yml` file in the root of the repository. Refer to the [Configuration section](#configuration) for more information.
 
 ### Outputs
-- `tag-created`: `true` if a new tag was created.
-- `new-tag`: Tag name if a new tag was created.
-- `old-version`: Old version before calculating the version bump.
-- `new-version`: New version after calculating the version bump.
+- `tag-created`: `true` if at least a new tag was created.
+- `new-tags`: JSON Array of new tag names created.
+- `version-bumps`: JSON Array of version bumps calculated. Check the [the `version_bumps` field in the Output section](#output) for more information.
 - `skipped-commits`: List of commits that were skipped because they don't match the commit pattern.
 - `error`: Error message if something went wrong.
 

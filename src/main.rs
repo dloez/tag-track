@@ -63,10 +63,8 @@ struct Output<'a> {
     tag_created: bool,
     /// New tags that were created.
     new_tags: Vec<String>,
-    /// Old versions before bumping.
-    old_versions: Vec<OutputVersion>,
-    /// New versions after bumping.
-    new_versions: Vec<OutputVersion>,
+    /// Information on the version bump of a scope.
+    version_bumps: Vec<OutputVersionBump<'a>>,
     /// Commits that were skipped during the version bump due to pattern mismatch.
     skipped_commits: &'a Vec<String>,
     /// Error message if any.
@@ -75,11 +73,15 @@ struct Output<'a> {
 
 /// Type for storing scope versions.
 #[derive(Serialize, Debug, Clone)]
-struct OutputVersion {
+struct OutputVersionBump<'a> {
     /// Scope of the version.
     scope: String,
-    /// Version number.
-    version: String,
+    /// Old version number before bump.
+    old_version: String,
+    /// New version number after bump.
+    new_version: String,
+    /// Kind of increment that was applied.
+    increment_kind: &'a Option<IncrementKind>,
 }
 
 impl<'a> Output<'a> {
@@ -90,8 +92,7 @@ impl<'a> Output<'a> {
             config,
             tag_created: false,
             new_tags: vec![],
-            old_versions: vec![],
-            new_versions: vec![],
+            version_bumps: vec![],
             skipped_commits,
             error: "".to_owned(),
         }
@@ -249,14 +250,16 @@ fn main() {
 
         let bump = version_bumps.get(scope).unwrap();
 
-        let old_version = OutputVersion {
-            scope: tag_details.scope.clone().unwrap_or_default(),
-            version: tag_details.version.clone().to_string(),
+        let mut version_bump = OutputVersionBump {
+            scope: scope.clone(),
+            old_version: tag_details.version.to_string(),
+            new_version: tag_details.version.to_string(),
+            increment_kind: bump,
         };
 
         if bump.is_none() {
-            output.old_versions.push(old_version.clone());
-            output.new_versions.push(old_version);
+            output.version_bumps.push(version_bump);
+
             if let OutputFormat::Text = output_format {
                 if scope.is_empty() {
                     println!("version bump for empty scope is not required");
@@ -267,7 +270,6 @@ fn main() {
             continue;
         }
 
-        let mut new_version = old_version.clone();
         match bump.as_ref().unwrap() {
             IncrementKind::Major => {
                 increment_major(&mut tag_details.version);
@@ -279,29 +281,28 @@ fn main() {
                 increment_patch(&mut tag_details.version);
             }
         }
-        new_version.version = tag_details.version.clone().to_string();
+        version_bump.new_version = tag_details.version.to_string();
         if let OutputFormat::Text = output_format {
             if scope.is_empty() {
                 println!(
                     "version bump for empty scope: {} -> {}",
-                    old_version.version, new_version.version
+                    version_bump.old_version, version_bump.new_version
                 );
             } else {
                 println!(
                     "version bump for scope {}: {} -> {}",
-                    scope, old_version.version, new_version.version
+                    scope, version_bump.old_version, version_bump.new_version
                 );
             }
         }
-        output.old_versions.push(old_version.clone());
-        output.new_versions.push(new_version.clone());
+        output.version_bumps.push(version_bump.clone());
 
         if args.create_tag {
             let new_tag_name = tag
                 .name
-                .replace(old_version.version.as_str(), new_version.version.as_str());
+                .replace(&version_bump.old_version, &version_bump.new_version);
             let new_tag_message = &config.new_tag_message.replace("{scope}", scope);
-            let new_tag_message = new_tag_message.replace("{version}", &new_version.version);
+            let new_tag_message = new_tag_message.replace("{version}", &version_bump.new_version);
             if let Err(error) = source.create_tag(&new_tag_name, &new_tag_message, &commit_sha) {
                 print_error(error, &args, &output_format, Some(&config));
                 exit(1);
