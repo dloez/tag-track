@@ -3,6 +3,8 @@ on:
   push:
 jobs:
   call-action:
-    uses: ./
-    with:
-      test-input: "test"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./
+        with:
+          test-input: "test"
