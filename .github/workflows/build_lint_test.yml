@@ -3,11 +3,11 @@ on:
   pull_request:
     branches:
       - main
-      - 'milestone/*'
+      - "milestone/*"
   workflow_call:
   push:
     branches:
-      - 'milestone/*'
+      - "milestone/*"
 defaults:
   run:
     shell: bash
@@ -38,7 +38,7 @@ jobs:
         if: matrix.os-target.target == 'aarch64-unknown-linux-gnu'
       - name: Run Tag Track
         id: tag-track
-        uses: ./
+        uses: dloez/tag-track@main
         with:
           github-token: ${{ github.token }}
           compile: true
