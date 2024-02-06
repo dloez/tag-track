@@ -1,0 +1,8 @@
+name: Test workflow
+on:
+  push:
+jobs:
+  call-action:
+    uses: ./
+    with:
+      test-input: "test"
