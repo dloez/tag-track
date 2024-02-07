@@ -1,24 +1,24 @@
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 
+async function getGitConfigProperty(propertyName: string): Promise<string> {
+  const {stdout, stderr} = await exec.getExecOutput('git', [
+    'config',
+    propertyName
+  ])
+
+  if (stderr) {
+    core.setFailed('Failed to get git user.name')
+  }
+
+  return stdout.trim()
+}
+
 async function getCurrentGitAuthor(): Promise<[string, string]> {
-  let name = ''
-  let email = ''
-  await exec.exec('git', ['config', 'user.name'], {
-    listeners: {
-      stdout: (data: Buffer) => {
-        name += data.toString()
-      }
-    }
-  })
-  await exec.exec('git', ['config', 'user.email'], {
-    listeners: {
-      stdout: (data: Buffer) => {
-        email += data.toString()
-      }
-    }
-  })
-  return [name.trim(), email.trim()]
+  const name = await getGitConfigProperty('user.name')
+  const email = await getGitConfigProperty('user.email')
+
+  return [name, email]
 }
 
 async function getActionRef(): Promise<string> {
@@ -40,7 +40,7 @@ async function setupDownloadRun() {
   const runnerArch = process.env.RUNNER_ARCH
   const actionRef = await getActionRef()
   const cacheKey = `tag-track_download${runnerOS}_${runnerArch}_${actionRef}`
-  core.setOutput('cache-key', cacheKey)
+  core.debug(`Cache key: ${cacheKey}`)
 }
 
 async function run() {

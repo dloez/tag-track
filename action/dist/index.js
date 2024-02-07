@@ -25976,25 +25976,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
+function getGitConfigProperty(propertyName) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const { stdout, stderr } = yield exec.getExecOutput('git', [
+            'config',
+            propertyName
+        ]);
+        if (stderr) {
+            core.setFailed('Failed to get git user.name');
+        }
+        return stdout.trim();
+    });
+}
 function getCurrentGitAuthor() {
     return __awaiter(this, void 0, void 0, function* () {
-        let name = '';
-        let email = '';
-        yield exec.exec('git', ['config', 'user.name'], {
-            listeners: {
-                stdout: (data) => {
-                    name += data.toString();
-                }
-            }
-        });
-        yield exec.exec('git', ['config', 'user.email'], {
-            listeners: {
-                stdout: (data) => {
-                    email += data.toString();
-                }
-            }
-        });
-        return [name.trim(), email.trim()];
+        const name = yield getGitConfigProperty('user.name');
+        const email = yield getGitConfigProperty('user.email');
+        return [name, email];
     });
 }
 function getActionRef() {
@@ -26017,7 +26015,7 @@ function setupDownloadRun() {
         const runnerArch = process.env.RUNNER_ARCH;
         const actionRef = yield getActionRef();
         const cacheKey = `tag-track_download${runnerOS}_${runnerArch}_${actionRef}`;
-        core.setOutput('cache-key', cacheKey);
+        core.debug(`Cache key: ${cacheKey}`);
     });
 }
 function run() {
