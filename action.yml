@@ -2,9 +2,52 @@ name: Tag Track
 description: Calculate semantic version bump based on conventional commits.
 author: David Lopez <davidlopez.hellin@outlook.com>
 inputs:
-  test-input:
-    description: Test input.
-    required: true
+  create-tag:
+    description: Create a new tag with bumped version. Defaults to `false`.
+    default: false
+  push-tag:
+    description: Push the new tag to the repository and requires `create-tag` to be `true`. Defaults to `false`.
+    default: false
+  github-repo:
+    description: Github repository in the format owner/repo. Defaults to the repository that triggers the action.
+    required: false
+  github-api-url:
+    description: Github API URL. Defaults to the value of the environment variable `GITHUB_API_URL`.
+    required: false
+  github-token:
+    description: Github token to authorize requests to GitHub REST API. Can cause rate limit to be increased.
+    required: false
+  commit-sha:
+    description: Commit SHA from where the version bump will be calculated. Defaults to the commit SHA that triggers the action.
+    required: false
+  compile:
+    description: Instead of downloading the `TagTrack` binary, compile it from source. Defaults to `false`.
+    default: false
+  use-cache:
+    description: Save binary in cache to avoid downloading or compiling it every time. Defaults to `false`.
+    default: false
+  git-author-name:
+    description: Name of the author for tags created by Tag Track. Defaults to `github-actions`.
+    default: github-actions
+  git-author-email:
+    description: Email of the author for tags created by Tag Track. Defaults to `github-actions@github.com`.
+    default: github-actions@github.com
+outputs:
+  tag-created:
+    description: "`true` if at least a new tag was created"
+    value: ${{ steps.tag-track-runner.outputs.tag-created }}
+  new-tags:
+    description: JSON Array of new tag names created.
+    value: ${{ steps.tag-track-runner.outputs.new-tags }}
+  version-bumps:
+    description: List of version bumps.
+    value: ${{ steps.tag-track-runner.outputs.version-bumps }}
+  skipped-commits:
+    description: List of commits that were skipped because they don't match the commit pattern.
+    value: ${{ steps.tag-track-runner.outputs.skipped-commits }}
+  error:
+    description: Error message if something went wrong.
+    value: ${{ steps.tag-track-runner.outputs.error }}
 runs:
   using: node20
   main: action/dist/index.js
