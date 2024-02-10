@@ -26020,6 +26020,9 @@ function setupDownloadRun() {
 }
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
+        const { stdout, stderr } = yield exec.getExecOutput('ls', [
+            '-l'
+        ]);
         const [name, email] = yield getCurrentGitAuthor();
         core.debug(`Git author name: ${name}`);
         core.debug(`Git author email: ${email}`);
