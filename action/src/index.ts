@@ -81,7 +81,7 @@ async function windowsInstall(actionRef: string) {
     'tag-track-bin'
   ])
   await exec.getExecOutput('mv', [
-    `${process.env.localappdata}/tag-track/bin/tag-track.exe`,
+    `${process.env.LOCALAPPDATA}/tag-track/bin/tag-track.exe`,
     './tag-track-bin/tag-track'
   ])
 }
