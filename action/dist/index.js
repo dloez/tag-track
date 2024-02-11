@@ -80274,11 +80274,7 @@ function getActionRef() {
 }
 function linuxMacInstall(actionRef) {
     return __awaiter(this, void 0, void 0, function* () {
-        const rootActionDir = path.dirname(__dirname);
-        console.log(rootActionDir);
-        const { stdout } = yield exec.getExecOutput('ls', ['-la'], {
-            cwd: rootActionDir
-        });
+        const rootActionDir = path.dirname(path.dirname(__dirname));
         const { exitCode, stderr } = yield exec.getExecOutput('sh', ['install.sh', actionRef], {
             cwd: rootActionDir
         });
