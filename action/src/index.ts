@@ -80,8 +80,9 @@ async function windowsInstall(actionRef: string) {
     '-Path',
     'tag-track-bin'
   ])
+  const installDir = path.join(path.dirname(process.env.APPDATA!), 'Local')
   await exec.getExecOutput('mv', [
-    `${process.env.LOCALAPPDATA}/tag-track/bin/tag-track.exe`,
+    `${installDir}/tag-track/bin/tag-track.exe`,
     './tag-track-bin/tag-track'
   ])
 }
