@@ -73,14 +73,16 @@ async function windowsInstall(actionRef: string) {
     core.setFailed(`Failed to install tag-track: ${stderr}`)
   }
 
-  await exec.getExecOutput('New-Item', [
+  await exec.getExecOutput('powershell', [
+    'New-Item',
     '-ItemType',
     'Directory',
     '-Force',
     '-Path',
     'tag-track-bin'
   ])
-  await exec.getExecOutput('mv', [
+  await exec.getExecOutput('powershell', [
+    'Move-Item',
     `${process.env.LOCALAPPDATA}/tag-track/bin/tag-track.exe`,
     './tag-track-bin/tag-track'
   ])

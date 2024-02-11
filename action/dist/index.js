@@ -80293,14 +80293,16 @@ function windowsInstall(actionRef) {
         if (exitCode !== 0) {
             core.setFailed(`Failed to install tag-track: ${stderr}`);
         }
-        yield exec.getExecOutput('New-Item', [
+        yield exec.getExecOutput('powershell', [
+            'New-Item',
             '-ItemType',
             'Directory',
             '-Force',
             '-Path',
             'tag-track-bin'
         ]);
-        yield exec.getExecOutput('mv', [
+        yield exec.getExecOutput('powershell', [
+            'Move-Item',
             `${process.env.LOCALAPPDATA}/tag-track/bin/tag-track.exe`,
             './tag-track-bin/tag-track'
         ]);
