@@ -80300,25 +80300,21 @@ function windowsInstall(actionRef) {
             '-Path',
             'tag-track-bin'
         ]);
-        core.debug(`${process.env.LOCALAPPDATA}`);
-        core.debug('-----------------');
-        core.debug(`${process.env}`);
-        const installDir = path.join(path.dirname(process.env.APPDATA), 'Local');
         yield exec.getExecOutput('mv', [
-            `${installDir}/tag-track/bin/tag-track.exe`,
+            `${process.env.LOCALAPPDATA}/tag-track/bin/tag-track.exe`,
             './tag-track-bin/tag-track'
         ]);
     });
 }
 function setupDownloadRun() {
     return __awaiter(this, void 0, void 0, function* () {
-        const runnerOS = process.env.RUNNER_OS;
-        const runnerArch = process.env.RUNNER_ARCH;
-        const actionRef = yield getActionRef();
+        const runnerOS = process.env.RUNNER_OS.toLowerCase();
+        const runnerArch = process.env.RUNNER_ARCH.toLowerCase();
+        const actionRef = (yield getActionRef()).toLowerCase();
         const cacheKey = `tag-track_download${runnerOS}_${runnerArch}_${actionRef}`;
         const cacheHit = yield cache.restoreCache(['tag-track-bin'], cacheKey);
         if (!cacheHit) {
-            if (runnerOS == 'windows') {
+            if (runnerOS === 'windows') {
                 yield windowsInstall(actionRef);
             }
             else {

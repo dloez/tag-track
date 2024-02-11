@@ -80,25 +80,21 @@ async function windowsInstall(actionRef: string) {
     '-Path',
     'tag-track-bin'
   ])
-  core.debug(`${process.env.LOCALAPPDATA}`)
-  core.debug('-----------------')
-  core.debug(`${process.env}`)
-  const installDir = path.join(path.dirname(process.env.APPDATA!), 'Local')
   await exec.getExecOutput('mv', [
-    `${installDir}/tag-track/bin/tag-track.exe`,
+    `${process.env.LOCALAPPDATA}/tag-track/bin/tag-track.exe`,
     './tag-track-bin/tag-track'
   ])
 }
 
 async function setupDownloadRun() {
-  const runnerOS = process.env.RUNNER_OS
-  const runnerArch = process.env.RUNNER_ARCH
-  const actionRef = await getActionRef()
+  const runnerOS = process.env.RUNNER_OS!.toLowerCase()
+  const runnerArch = process.env.RUNNER_ARCH!.toLowerCase()
+  const actionRef = (await getActionRef()).toLowerCase()
   const cacheKey = `tag-track_download${runnerOS}_${runnerArch}_${actionRef}`
 
   const cacheHit = await cache.restoreCache(['tag-track-bin'], cacheKey)
   if (!cacheHit) {
-    if (runnerOS == 'windows') {
+    if (runnerOS === 'windows') {
       await windowsInstall(actionRef)
     } else {
       await linuxMacInstall(actionRef)
