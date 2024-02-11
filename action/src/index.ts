@@ -3,25 +3,25 @@ import * as exec from '@actions/exec'
 import * as cache from '@actions/cache'
 import * as path from 'path'
 
-async function getGitConfigProperty(propertyName: string): Promise<string> {
-  const {stdout, stderr} = await exec.getExecOutput('git', [
-    'config',
-    propertyName
-  ])
+// async function getGitConfigProperty(propertyName: string): Promise<string> {
+//   const {stdout, stderr} = await exec.getExecOutput('git', [
+//     'config',
+//     propertyName
+//   ])
 
-  if (stderr) {
-    core.setFailed('Failed to get git user.name')
-  }
+//   if (stderr) {
+//     core.setFailed('Failed to get git user.name')
+//   }
 
-  return stdout.trim()
-}
+//   return stdout.trim()
+// }
 
-async function getCurrentGitAuthor(): Promise<[string, string]> {
-  const name = await getGitConfigProperty('user.name')
-  const email = await getGitConfigProperty('user.email')
+// async function getCurrentGitAuthor(): Promise<[string, string]> {
+//   const name = await getGitConfigProperty('user.name')
+//   const email = await getGitConfigProperty('user.email')
 
-  return [name, email]
-}
+//   return [name, email]
+// }
 
 async function getActionRef(): Promise<string> {
   let ref = ''
@@ -60,10 +60,33 @@ async function linuxMacInstall(actionRef: string) {
 }
 
 async function windowsInstall(actionRef: string) {
-  core.setFailed('TBI')
+  const rootActionDir = path.dirname(path.dirname(__dirname))
+  const {exitCode, stderr} = await exec.getExecOutput(
+    'powershell',
+    ['-ExecutionPolicy', 'Bypass', '-File', 'install.ps1', actionRef],
+    {
+      cwd: rootActionDir
+    }
+  )
+
+  if (exitCode !== 0) {
+    core.setFailed(`Failed to install tag-track: ${stderr}`)
+  }
+
+  await exec.getExecOutput('New-Item', [
+    '-ItemType',
+    'Directory',
+    '-Force',
+    '-Path',
+    'tag-track-bin'
+  ])
+  await exec.getExecOutput('mv', [
+    `${process.env.localappdata}/tag-track/bin/tag-track.exe`,
+    './tag-track-bin/tag-track'
+  ])
 }
 
-async function setupDownload() {
+async function setupDownloadRun() {
   const runnerOS = process.env.RUNNER_OS
   const runnerArch = process.env.RUNNER_ARCH
   const actionRef = await getActionRef()
@@ -77,12 +100,12 @@ async function setupDownload() {
       await linuxMacInstall(actionRef)
     }
 
-    await cache.saveCache(['tag-track-bin'], cacheKey)
+    //await cache.saveCache(['tag-track-bin'], cacheKey)
   }
 }
 
 async function run() {
-  setupDownload()
+  setupDownloadRun()
 }
 
 run()

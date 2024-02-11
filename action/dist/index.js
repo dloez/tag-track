@@ -80238,25 +80238,21 @@ const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const cache = __importStar(__nccwpck_require__(7799));
 const path = __importStar(__nccwpck_require__(1017));
-function getGitConfigProperty(propertyName) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { stdout, stderr } = yield exec.getExecOutput('git', [
-            'config',
-            propertyName
-        ]);
-        if (stderr) {
-            core.setFailed('Failed to get git user.name');
-        }
-        return stdout.trim();
-    });
-}
-function getCurrentGitAuthor() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const name = yield getGitConfigProperty('user.name');
-        const email = yield getGitConfigProperty('user.email');
-        return [name, email];
-    });
-}
+// async function getGitConfigProperty(propertyName: string): Promise<string> {
+//   const {stdout, stderr} = await exec.getExecOutput('git', [
+//     'config',
+//     propertyName
+//   ])
+//   if (stderr) {
+//     core.setFailed('Failed to get git user.name')
+//   }
+//   return stdout.trim()
+// }
+// async function getCurrentGitAuthor(): Promise<[string, string]> {
+//   const name = await getGitConfigProperty('user.name')
+//   const email = await getGitConfigProperty('user.email')
+//   return [name, email]
+// }
 function getActionRef() {
     return __awaiter(this, void 0, void 0, function* () {
         let ref = '';
@@ -80290,10 +80286,27 @@ function linuxMacInstall(actionRef) {
 }
 function windowsInstall(actionRef) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.setFailed('TBI');
+        const rootActionDir = path.dirname(path.dirname(__dirname));
+        const { exitCode, stderr } = yield exec.getExecOutput('powershell', ['-ExecutionPolicy', 'Bypass', '-File', 'install.ps1', actionRef], {
+            cwd: rootActionDir
+        });
+        if (exitCode !== 0) {
+            core.setFailed(`Failed to install tag-track: ${stderr}`);
+        }
+        yield exec.getExecOutput('New-Item', [
+            '-ItemType',
+            'Directory',
+            '-Force',
+            '-Path',
+            'tag-track-bin'
+        ]);
+        yield exec.getExecOutput('mv', [
+            `${process.env.localappdata}/tag-track/bin/tag-track.exe`,
+            './tag-track-bin/tag-track'
+        ]);
     });
 }
-function setupDownload() {
+function setupDownloadRun() {
     return __awaiter(this, void 0, void 0, function* () {
         const runnerOS = process.env.RUNNER_OS;
         const runnerArch = process.env.RUNNER_ARCH;
@@ -80307,13 +80320,13 @@ function setupDownload() {
             else {
                 yield linuxMacInstall(actionRef);
             }
-            yield cache.saveCache(['tag-track-bin'], cacheKey);
+            //await cache.saveCache(['tag-track-bin'], cacheKey)
         }
     });
 }
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        setupDownload();
+        setupDownloadRun();
     });
 }
 run();

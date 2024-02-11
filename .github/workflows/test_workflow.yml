@@ -2,8 +2,14 @@ name: Test workflow
 on:
   push:
 jobs:
-  call-action:
+  call-action-linux:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        id: tag-track
+  call-action-windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./
