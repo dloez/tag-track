@@ -32,7 +32,8 @@ async function getActionRef(): Promise<string> {
     }
   })
 
-  return ref.trim()
+  // return ref.trim()
+  return '0.10.0'
 }
 
 async function setupDownloadRun() {
@@ -45,6 +46,8 @@ async function setupDownloadRun() {
 
 async function run() {
   setupDownloadRun()
+  core.setOutput('version-api', '0.10.0')
+  core.setOutput('version-ui', '0.11.0')
 }
 
 run()

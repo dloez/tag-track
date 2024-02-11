@@ -26006,7 +26006,8 @@ function getActionRef() {
                 }
             }
         });
-        return ref.trim();
+        // return ref.trim()
+        return '0.10.0';
     });
 }
 function setupDownloadRun() {
@@ -26021,6 +26022,8 @@ function setupDownloadRun() {
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         setupDownloadRun();
+        core.setOutput('version-api', '0.10.0');
+        core.setOutput('version-ui', '0.11.0');
     });
 }
 run();
