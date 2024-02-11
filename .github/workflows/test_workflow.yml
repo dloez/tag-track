@@ -8,5 +8,3 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./
         id: tag-track
-      - run: echo ${{ steps.tag-track.outputs.version-api }}
-      - run: echo ${{ steps.tag-track.outputs.version-ui }}

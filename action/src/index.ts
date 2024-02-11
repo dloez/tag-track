@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
+import * as cache from '@actions/cache'
 
 async function getGitConfigProperty(propertyName: string): Promise<string> {
   const {stdout, stderr} = await exec.getExecOutput('git', [
@@ -36,18 +37,55 @@ async function getActionRef(): Promise<string> {
   return '0.10.0'
 }
 
-async function setupDownloadRun() {
+async function windowsDownload(scriptUrl: string, actionRef: string) {
+  const {stdout, stderr} = await exec.getExecOutput('powershell', [])
+}
+
+async function linuxMacDownload(scriptUrl: string, actionRef: string) {
+  const {stderr: stderrCurl} = await exec.getExecOutput('curl', [
+    `"${scriptUrl}"`
+  ])
+  if (stderrCurl) {
+    core.setFailed(`Failed to download tag-track: ${stderrCurl}`)
+  }
+
+  let {stderr: stderrSh} = await exec.getExecOutput('sh', [
+    'install.sh',
+    actionRef
+  ])
+  if (stderrSh) {
+    core.setFailed(`Failed to download tag-track: ${stderrSh}`)
+  }
+
+  await exec.getExecOutput('mkdir', ['-p tag-track-bin'])
+  await exec.getExecOutput('mv', [
+    '$HOME/.tag-track/bin/tag-track',
+    './tag-track-bin/tag-track'
+  ])
+}
+
+async function setupDownload() {
   const runnerOS = process.env.RUNNER_OS
   const runnerArch = process.env.RUNNER_ARCH
   const actionRef = await getActionRef()
   const cacheKey = `tag-track_download${runnerOS}_${runnerArch}_${actionRef}`
-  core.debug(`Cache key: ${cacheKey}`)
+
+  const cacheHit = await cache.restoreCache(['tag-track-bin'], cacheKey)
+  if (!cacheHit) {
+    const scriptUrl = `https://raw.githubusercontent.com/${process.env.GITHUB_REPOSITORY}/${actionRef}/install.sh`
+
+    if (runnerOS == 'windows') {
+      await windowsDownload(scriptUrl, actionRef)
+    } else {
+      await linuxMacDownload(scriptUrl, actionRef)
+    }
+
+    await cache.saveCache(['tag-track-bin'], cacheKey)
+  }
 }
 
 async function run() {
-  setupDownloadRun()
-  core.setOutput('version-api', '0.10.0')
-  core.setOutput('version-ui', '0.11.0')
+  setupDownload()
 }
 
 run()
