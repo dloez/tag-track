@@ -80278,9 +80278,7 @@ function windowsDownload(scriptUrl, actionRef) {
 }
 function linuxMacDownload(scriptUrl, actionRef) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { stderr: stderrCurl } = yield exec.getExecOutput('curl', [
-            `"${scriptUrl}"`
-        ]);
+        const { stderr: stderrCurl } = yield exec.getExecOutput('curl', [scriptUrl]);
         if (stderrCurl) {
             core.setFailed(`Failed to download tag-track: ${stderrCurl}`);
         }

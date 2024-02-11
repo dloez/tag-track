@@ -42,9 +42,7 @@ async function windowsDownload(scriptUrl: string, actionRef: string) {
 }
 
 async function linuxMacDownload(scriptUrl: string, actionRef: string) {
-  const {stderr: stderrCurl} = await exec.getExecOutput('curl', [
-    `"${scriptUrl}"`
-  ])
+  const {stderr: stderrCurl} = await exec.getExecOutput('curl', [scriptUrl])
   if (stderrCurl) {
     core.setFailed(`Failed to download tag-track: ${stderrCurl}`)
   }
