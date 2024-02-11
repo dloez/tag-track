@@ -57,7 +57,7 @@ async function linuxMacDownload(scriptUrl: string, actionRef: string) {
 
   await exec.getExecOutput('mkdir', ['-p', 'tag-track-bin'])
   await exec.getExecOutput('mv', [
-    '"${HOME}/.tag-track/bin/tag-track"',
+    `${process.env.HOME}/.tag-track/bin/tag-track`,
     './tag-track-bin/tag-track'
   ])
 }
