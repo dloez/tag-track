@@ -80300,6 +80300,9 @@ function windowsInstall(actionRef) {
             '-Path',
             'tag-track-bin'
         ]);
+        core.debug(`${process.env.LOCALAPPDATA}`);
+        core.debug('-----------------');
+        core.debug(`${process.env}`);
         const installDir = path.join(path.dirname(process.env.APPDATA), 'Local');
         yield exec.getExecOutput('mv', [
             `${installDir}/tag-track/bin/tag-track.exe`,
