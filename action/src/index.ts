@@ -55,7 +55,7 @@ async function linuxMacDownload(scriptUrl: string, actionRef: string) {
     core.setFailed(`Failed to download tag-track: ${stderrSh}`)
   }
 
-  await exec.getExecOutput('mkdir', ['-p tag-track-bin'])
+  await exec.getExecOutput('mkdir', ['-p', 'tag-track-bin'])
   await exec.getExecOutput('mv', [
     '$HOME/.tag-track/bin/tag-track',
     './tag-track-bin/tag-track'
