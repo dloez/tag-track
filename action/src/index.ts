@@ -51,6 +51,12 @@ async function linuxMacInstall(actionRef: string) {
   if (exitCode !== 0) {
     core.setFailed(`Failed to install tag-track: ${stderr}`)
   }
+
+  await exec.getExecOutput('mkdir', ['-p', 'tag-track-bin'])
+  await exec.getExecOutput('mv', [
+    `${process.env.HOME}/.tag-track/bin/tag-track`,
+    './tag-track-bin/tag-track'
+  ])
 }
 
 async function windowsInstall(actionRef: string) {

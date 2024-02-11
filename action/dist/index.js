@@ -80281,6 +80281,11 @@ function linuxMacInstall(actionRef) {
         if (exitCode !== 0) {
             core.setFailed(`Failed to install tag-track: ${stderr}`);
         }
+        yield exec.getExecOutput('mkdir', ['-p', 'tag-track-bin']);
+        yield exec.getExecOutput('mv', [
+            `${process.env.HOME}/.tag-track/bin/tag-track`,
+            './tag-track-bin/tag-track'
+        ]);
     });
 }
 function windowsInstall(actionRef) {
