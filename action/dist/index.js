@@ -80291,7 +80291,7 @@ function linuxMacDownload(scriptUrl, actionRef) {
         }
         yield exec.getExecOutput('mkdir', ['-p', 'tag-track-bin']);
         yield exec.getExecOutput('mv', [
-            '$HOME/.tag-track/bin/tag-track',
+            '"${HOME}/.tag-track/bin/tag-track"',
             './tag-track-bin/tag-track'
         ]);
     });
