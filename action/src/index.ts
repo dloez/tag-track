@@ -39,11 +39,7 @@ async function getActionRef(): Promise<string> {
 }
 
 async function linuxMacInstall(actionRef: string) {
-  const rootActionDir = path.dirname(__dirname)
-  console.log(rootActionDir)
-  const {stdout} = await exec.getExecOutput('ls', ['-la'], {
-    cwd: rootActionDir
-  })
+  const rootActionDir = path.dirname(path.dirname(__dirname))
   const {exitCode, stderr} = await exec.getExecOutput(
     'sh',
     ['install.sh', actionRef],
