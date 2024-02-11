@@ -44,13 +44,6 @@ async function setupDownloadRun() {
 }
 
 async function run() {
-  const {stdout, stderr} = await exec.getExecOutput('ls', [
-    '-l'
-  ])
-  const [name, email] = await getCurrentGitAuthor()
-  core.debug(`Git author name: ${name}`)
-  core.debug(`Git author email: ${email}`)
-
   setupDownloadRun()
 }
 
