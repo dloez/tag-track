@@ -40,6 +40,10 @@ async function getActionRef(): Promise<string> {
 
 async function linuxMacInstall(actionRef: string) {
   const rootActionDir = path.dirname(__dirname)
+  console.log(rootActionDir)
+  const {stdout} = await exec.getExecOutput('ls', ['-la'], {
+    cwd: rootActionDir
+  })
   const {exitCode, stderr} = await exec.getExecOutput(
     'sh',
     ['install.sh', actionRef],
@@ -65,8 +69,6 @@ async function setupDownload() {
 
   const cacheHit = await cache.restoreCache(['tag-track-bin'], cacheKey)
   if (!cacheHit) {
-    const scriptUrl = `https://raw.githubusercontent.com/${process.env.GITHUB_REPOSITORY}/${actionRef}/install.sh`
-
     if (runnerOS == 'windows') {
       await windowsInstall(actionRef)
     } else {
