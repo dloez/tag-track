@@ -80237,6 +80237,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const exec = __importStar(__nccwpck_require__(1514));
 const cache = __importStar(__nccwpck_require__(7799));
+const path = __importStar(__nccwpck_require__(1017));
 function getGitConfigProperty(propertyName) {
     return __awaiter(this, void 0, void 0, function* () {
         const { stdout, stderr } = yield exec.getExecOutput('git', [
@@ -80271,29 +80272,20 @@ function getActionRef() {
         return '0.10.0';
     });
 }
-function windowsDownload(scriptUrl, actionRef) {
+function linuxMacInstall(actionRef) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { stdout, stderr } = yield exec.getExecOutput('powershell', []);
+        const rootActionDir = path.dirname(__dirname);
+        const { exitCode, stderr } = yield exec.getExecOutput('sh', ['install.sh', actionRef], {
+            cwd: rootActionDir
+        });
+        if (exitCode !== 0) {
+            core.setFailed(`Failed to install tag-track: ${stderr}`);
+        }
     });
 }
-function linuxMacDownload(scriptUrl, actionRef) {
+function windowsInstall(actionRef) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { stderr: stderrCurl } = yield exec.getExecOutput('curl', [scriptUrl]);
-        if (stderrCurl) {
-            core.setFailed(`Failed to download tag-track: ${stderrCurl}`);
-        }
-        let { stderr: stderrSh } = yield exec.getExecOutput('sh', [
-            'install.sh',
-            actionRef
-        ]);
-        if (stderrSh) {
-            core.setFailed(`Failed to download tag-track: ${stderrSh}`);
-        }
-        yield exec.getExecOutput('mkdir', ['-p', 'tag-track-bin']);
-        yield exec.getExecOutput('mv', [
-            `${process.env.HOME}/.tag-track/bin/tag-track`,
-            './tag-track-bin/tag-track'
-        ]);
+        core.setFailed('TBI');
     });
 }
 function setupDownload() {
@@ -80306,10 +80298,10 @@ function setupDownload() {
         if (!cacheHit) {
             const scriptUrl = `https://raw.githubusercontent.com/${process.env.GITHUB_REPOSITORY}/${actionRef}/install.sh`;
             if (runnerOS == 'windows') {
-                yield windowsDownload(scriptUrl, actionRef);
+                yield windowsInstall(actionRef);
             }
             else {
-                yield linuxMacDownload(scriptUrl, actionRef);
+                yield linuxMacInstall(actionRef);
             }
             yield cache.saveCache(['tag-track-bin'], cacheKey);
         }

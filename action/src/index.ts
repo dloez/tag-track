@@ -1,6 +1,7 @@
 import * as core from '@actions/core'
 import * as exec from '@actions/exec'
 import * as cache from '@actions/cache'
+import * as path from 'path'
 
 async function getGitConfigProperty(propertyName: string): Promise<string> {
   const {stdout, stderr} = await exec.getExecOutput('git', [
@@ -37,29 +38,23 @@ async function getActionRef(): Promise<string> {
   return '0.10.0'
 }
 
-async function windowsDownload(scriptUrl: string, actionRef: string) {
-  const {stdout, stderr} = await exec.getExecOutput('powershell', [])
+async function linuxMacInstall(actionRef: string) {
+  const rootActionDir = path.dirname(__dirname)
+  const {exitCode, stderr} = await exec.getExecOutput(
+    'sh',
+    ['install.sh', actionRef],
+    {
+      cwd: rootActionDir
+    }
+  )
+
+  if (exitCode !== 0) {
+    core.setFailed(`Failed to install tag-track: ${stderr}`)
+  }
 }
 
-async function linuxMacDownload(scriptUrl: string, actionRef: string) {
-  const {stderr: stderrCurl} = await exec.getExecOutput('curl', [scriptUrl])
-  if (stderrCurl) {
-    core.setFailed(`Failed to download tag-track: ${stderrCurl}`)
-  }
-
-  let {stderr: stderrSh} = await exec.getExecOutput('sh', [
-    'install.sh',
-    actionRef
-  ])
-  if (stderrSh) {
-    core.setFailed(`Failed to download tag-track: ${stderrSh}`)
-  }
-
-  await exec.getExecOutput('mkdir', ['-p', 'tag-track-bin'])
-  await exec.getExecOutput('mv', [
-    `${process.env.HOME}/.tag-track/bin/tag-track`,
-    './tag-track-bin/tag-track'
-  ])
+async function windowsInstall(actionRef: string) {
+  core.setFailed('TBI')
 }
 
 async function setupDownload() {
@@ -73,9 +68,9 @@ async function setupDownload() {
     const scriptUrl = `https://raw.githubusercontent.com/${process.env.GITHUB_REPOSITORY}/${actionRef}/install.sh`
 
     if (runnerOS == 'windows') {
-      await windowsDownload(scriptUrl, actionRef)
+      await windowsInstall(actionRef)
     } else {
-      await linuxMacDownload(scriptUrl, actionRef)
+      await linuxMacInstall(actionRef)
     }
 
     await cache.saveCache(['tag-track-bin'], cacheKey)
